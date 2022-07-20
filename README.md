@@ -11,6 +11,7 @@ Sensitive Area|9.13s   |2.78s   |
 Tukwila       |9.72s   |2.49s   |
 No Address    |7.34s   |2.26s   |
 Condo         |3.75s   |1.42s   |
+
 Were this prototype to continue I would like to page load times continue to improve where the best case takes less than one second and the worst case at most 2 seconds.
 
 # HTTP Request and Response workflow
