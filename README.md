@@ -18,4 +18,5 @@ Were this prototype to continue I would like to page load times continue to impr
 
 # HTTP Request and Response workflow
 ![image](https://user-images.githubusercontent.com/11726956/180094086-0e8d2385-040f-4aa6-9614-b99339cdb593.png)
+
 This diagram show the request/response workflow that this app currently implments. I believe there maybe addional room for improvement by removing the HTTP call to the KC GIS Lookup API and implementing that functionally directly into this app using a database query. The response from the Districts Report service definition request could also be cached, as it doesn't change very often, so that we can skip that HTTP call nearly all of the time.
