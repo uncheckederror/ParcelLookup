@@ -1,4 +1,4 @@
 # ParcelLookup
 
 # HTTP Request and Response workflow
-![image](https://user-images.githubusercontent.com/11726956/180093663-2b4914d8-523a-4143-986a-cd414a0f54a7.png)
+![image](https://user-images.githubusercontent.com/11726956/180094086-0e8d2385-040f-4aa6-9614-b99339cdb593.png)
