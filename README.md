@@ -1,5 +1,6 @@
 # ParcelLookup
 This project is a prototype designed to replace King County's existing GIS Districts Reports web app.
+![localhost_7025__PIN=1924089026](https://user-images.githubusercontent.com/11726956/180100018-3b03c3c5-667f-4723-be1d-d920b7177c64.png)
 
 It faithfully reimplements the same functionally with the primary goal for improving page load times. You can test the performance improvement for yourself by running the app locally and using the example links on the default page to compare the load times for the Existing app and the New app (this project). I recommend using Chrome's inspect tool, going to the Network tab and the using CTRL + F5 to clear the cache and reload the current page. Then you can see the page load time in the graph and stats in the Network tab.
 
