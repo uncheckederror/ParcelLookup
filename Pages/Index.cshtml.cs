@@ -15,6 +15,10 @@ namespace ParcelLookup.Pages
         private readonly int BufferDistance = -1;
         private readonly IConfiguration _configuration;
 
+        /// <summary>
+        /// Get configuration data (magic strings)
+        /// </summary>
+        /// <param name="configuration"></param>
         public DistrictsReportModel(IConfiguration configuration)
         {
             _configuration = configuration;
@@ -131,7 +135,41 @@ namespace ParcelLookup.Pages
             var stringCheck = await matchingDistrictsResponse.GetStringAsync();
             var matchingDistricts = await matchingDistrictsResponse.GetJsonAsync<DistrictsReportIdentify>();
 
-            // Force all the layername to be lowercase to regularize them and prevent mismatching.
+            // Map the data into the final Districts Report.
+            var districtsReport = GetFormattedDistrictsReport(parcel, pinQuery, matchingDistricts);
+
+            // Handle the Parcel's with Tukwila specific data.
+            var tukwila = districtsReport.Jurisdictions.Where(x => x.Name.ToLower() is "tukwila").FirstOrDefault();
+            var tukwilaReport = await GetTukwilaReportByParcelNumberAsync(parcel?.Parcel ?? string.Empty, extent, tukwila, pinQuery);
+
+            if (tukwilaReport is not null)
+            {
+                districtsReport.Tukwila = tukwilaReport;
+            }
+
+            return districtsReport;
+        }
+
+        /// <summary>
+        /// Parse the data from the Map and API Querys into data model that we can easily render into HTML.
+        /// 
+        /// This process would be easy were it not for the way that ArcGIS MapServices discribe their data.
+        /// To find the values we want we first have to loop through the data from every layer returned by our Identifiy query call here "results".
+        /// Once we've found the specific layer were interested in by checking for a specific layer name, because the objects in the "results" array are generic.
+        /// Then we can check the attributes object to see if there is a value in the specific field we want.
+        /// Attributes of a layer are key, value pairs because they can be added and removed at will in ArcGIS.
+        /// For our purposes this means we have to create an Attributes object that models all of the possible fields returned by this query
+        /// so that we can deserialize the JSON response and get the data we want.
+        /// This is why the Attributes data model has 160 fields when we are really only interested in one or two values for each layer from that Attributes object.
+        /// I don't love this, but it does work.
+        /// </summary>
+        /// <param name="parcel"></param>
+        /// <param name="pinQuery"></param>
+        /// <param name="matchingDistricts"></param>
+        /// <returns></returns>
+        private DistrictsReport GetFormattedDistrictsReport(ParcelInfo? parcel, MapServiceLayerQuery? pinQuery, DistrictsReportIdentify matchingDistricts)
+        {
+            // Force all the layernames to be lowercase to regularize them and prevent mismatching.
             foreach (var layer in matchingDistricts.results)
             {
                 layer.layerName = layer.layerName.ToLower(System.Globalization.CultureInfo.CurrentCulture);
@@ -322,9 +360,6 @@ namespace ParcelLookup.Pages
                 });
             }
 
-            var tukwila = jurisdictions.Where(x => x.Name.ToLower() is "tukwila").FirstOrDefault();
-            var tukwilaReport = await GetTukwilaReportByParcelNumberAsync(parcel?.Parcel ?? string.Empty, extent, tukwila, pinQuery);
-
             return new DistrictsReport
             {
                 ParcelNumber = parcelNumber,
@@ -396,10 +431,17 @@ namespace ParcelLookup.Pages
                 iMapLink = $"{_configuration["RelatedServices:iMap"]}{parcel?.Parcel}",
                 ParcelViewerLink = $"{_configuration["RelatedServices:ParcelViewer"]}{parcel?.Parcel}",
                 SensitiveAreaNotices = sensitiveAreaNotices.ToArray(),
-                Tukwila = tukwilaReport!,
             };
         }
 
+        /// <summary>
+        /// Get the districts report specific to Tukwila.
+        /// </summary>
+        /// <param name="parcelNumber"></param>
+        /// <param name="extent"></param>
+        /// <param name="tukwila"></param>
+        /// <param name="pinQuery"></param>
+        /// <returns></returns>
         private async Task<DistrictsReport.ParcelTukwila?> GetTukwilaReportByParcelNumberAsync(string parcelNumber, string extent, DistrictsReport.ParcelJurisdiction? tukwila, MapServiceLayerQuery pinQuery)
         {
             if (tukwila is not null)
@@ -506,6 +548,12 @@ namespace ParcelLookup.Pages
             }
         }
 
+        /// <summary>
+        /// Build a link based on the district number.
+        /// </summary>
+        /// <param name="schoolDistrictNumber"></param>
+        /// <param name="configuration"></param>
+        /// <returns></returns>
         private static string GetSchoolDistrictLinkByNumber(string schoolDistrictNumber, IConfiguration configuration)
         {
             return schoolDistrictNumber switch
@@ -534,6 +582,12 @@ namespace ParcelLookup.Pages
             };
         }
 
+        /// <summary>
+        /// Build a link based on the watershed name.
+        /// </summary>
+        /// <param name="watershed"></param>
+        /// <param name="configuration"></param>
+        /// <returns></returns>
         private static string GetWatershedLinkByName(string watershed, IConfiguration configuration)
         {
             return watershed switch
@@ -548,6 +602,12 @@ namespace ParcelLookup.Pages
             };
         }
 
+        /// <summary>
+        /// Build a link based on the WRIA number.
+        /// </summary>
+        /// <param name="wriaNumber"></param>
+        /// <param name="configuration"></param>
+        /// <returns></returns>
         private static string GetWRIALinkByWRIANumber(string wriaNumber, IConfiguration configuration)
         {
             return wriaNumber switch
@@ -560,16 +620,30 @@ namespace ParcelLookup.Pages
             };
         }
 
+        /// <summary>
+        /// Build a link to the parcel based on the Jurisdiction.
+        /// </summary>
+        /// <param name="parcelNumber"></param>
+        /// <param name="jurisdiction"></param>
+        /// <param name="configuration"></param>
+        /// <returns></returns>
         private static string GetJuristictionLinkByParcelNumber(string parcelNumber, string jurisdiction, IConfiguration configuration)
         {
             return jurisdiction switch
             {
                 "Seattle" => $"{configuration["JurisdictionLinks:SeattleProperyURL"]}{parcelNumber}",
                 "Newcastle" => $"{configuration["JurisdictionLinks:NewcastleURL"]}{parcelNumber}",
+                // Should we include Tukwila in here rather than having it happen separately in the Tukwila-only districts report?
                 _ => string.Empty,
             };
         }
 
+        /// <summary>
+        /// Shrink the geometry of a parcel by a meter to reduce accidental overlays.
+        /// </summary>
+        /// <param name="pinQuery"></param>
+        /// <param name="wkid"></param>
+        /// <returns></returns>
         private Geometry? BufferParcel(MapServiceLayerQuery pinQuery, int wkid)
         {
             var geometryFactory = NetTopologySuite.NtsGeometryServices.Instance.CreateGeometryFactory(wkid);
