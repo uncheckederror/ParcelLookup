@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32630.192
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ParcelLookup", "ParcelLookup.csproj", "{245969FF-AA00-420F-93B7-C6C002BE9FC0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{245969FF-AA00-420F-93B7-C6C002BE9FC0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{245969FF-AA00-420F-93B7-C6C002BE9FC0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{245969FF-AA00-420F-93B7-C6C002BE9FC0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{245969FF-AA00-420F-93B7-C6C002BE9FC0}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {14009042-5AD1-46A9-871E-56C21E984006}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,769 @@
+﻿@page
+@model ParcelLookup.Pages.DistrictsReportModel
+@using System.Text.Json
+<script type="text/javascript">
+    function handleSearchQuery(textBox) {
+        const routeStart = 'https://gismaps.kingcounty.gov/arcgis/rest/services/Property/KingCo_Parcels/MapServer/0/query?where=PIN+like+%27';
+        const routeEnd = '%25%27&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=PIN&returnGeometry=false&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&havingClause=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=10&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=pjson';
+        fetch(`${routeStart}${textBox.value}${routeEnd}`)
+            .then(
+                function(response) {
+                    if (response.status !== 200) {
+                        console.log('Looks like there was a problem. Status Code: ' +
+                            response.status);
+                        return;
+                    }
+                    // Examine the text in the response
+                    response.json().then(function(data) {
+                        console.log(data);
+                        var options = '';
+                        for (var i = 0; i < data.features.length; i++) {
+                            options += '<option value="' + data.features[i].attributes.PIN + '" />';
+                        }
+                        var datalist = document.createElement("datalist");
+                        datalist.id = 'realaccountoptions';
+                        datalist.innerHTML = options;
+                        var textBox = document.getElementById("searchInput");
+                        var check = document.getElementById('realaccountoptions');
+                        if (typeof (check) != 'undefined' && check != null) {
+                            check.remove();
+                        }
+                        textBox.appendChild(datalist);
+                        textBox.setAttribute('list', 'realaccountoptions');
+                        console.log(datalist);
+                    });
+                }
+            )
+            .catch(function(err) {
+                console.log('Fetch Error :-S', err);
+            });
+    }
+    function onInput(textBox) {
+        var val = document.getElementById("searchInput").value;
+        var check = document.getElementById('realaccountoptions');
+        if (typeof (check) != 'undefined' && check != null) {
+            var opts = document.getElementById('realaccountoptions').childNodes;
+            for (var i = 0; i < opts.length; i++) {
+                if (opts[i].value === val) {
+                    var form = document.getElementById("searchForm");
+                    form.submit();
+                }
+            }
+        }
+        handleSearchQuery(textBox);
+    }
+</script>
+<div class="container">
+    <div class="row">
+        <div class="col mb-3 mt-3">
+            <form asp-page="./DistrictsReport" method="get" id="searchForm">
+                <div class="input-group">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text" id="searchByPin">Parcel Number</span>
+                    </div>
+                    <input id="searchInput" aria-describedby="searchByPin" class="form-control" name="PIN" type="text" placeholder="Enter a Parcel Number" value="@Model?.ParcelInfo?.Parcel" onchange="handleSearchQuery(this)" autocomplete="off" oninput="onInput(this)">
+                </div>
+            </form>
+        </div>
+    </div>
+    @if (Model?.Report is not null)
+    {
+        <div class="row">
+            <div class="col mb-3">
+                @if (!string.IsNullOrWhiteSpace(Model?.Message))
+                {
+                    <div class="alert alert-primary" role="alert">
+                        @Model?.Message
+                    </div>
+                }
+                @if (Model?.Report?.SensitiveAreaNotices is not null && Model.Report.SensitiveAreaNotices.Any())
+                {
+                    <div class="alert alert-primary" role="alert">
+                        There are Sensitive Area notices for this Parcel:
+                        @foreach (var notice in Model.Report.SensitiveAreaNotices)
+                        {
+                            <a href="@notice.Link">@notice.RecordingId</a>
+                        }
+                    </div>
+                }
+                <p class="display-6">Related Services</p>
+                <div class="btn-group">
+                    <a class="btn btn-outline-primary" href="@Model?.Report?.RealPropertyLink" target="_blank">Property Assessment Report</a>
+                    <a class="btn btn-outline-primary" href="@Model?.Report?.QuarterSectionLink" target="_blank">Quarter Section Map</a>
+                    <a class="btn btn-outline-primary" href="@Model?.Report?.PermittingLink" target="_blank">Permit Applications Report</a>
+                    <a class="btn btn-outline-primary" href="@Model?.Report?.TreasuryLink" target="_blank">Tax Statement</a>
+                    <a class="btn btn-outline-primary" href="@Model?.Report?.PlatLink" target="_blank">Plat Images</a>
+                    <a class="btn btn-outline-primary" href="@Model?.Report?.SurveysLink" target="_blank">Survey Images</a>
+                    <a class="btn btn-outline-primary" href="@Model?.Report?.SepticLink" target="_blank">Septic Plan</a>
+                    <a class="btn btn-outline-primary" href="@Model?.Report?.iMapLink" target="_blank">View in iMap</a>
+                    <a class="btn btn-outline-primary" href="@Model?.Report?.ParcelViewerLink" target="_blank">View in Parcel Viewer</a>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <p class="display-6">Parcel Definition</p>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <tbody>
+                            <tr>
+                                <td>
+                                    Parcel Number
+                                </td>
+                                <td>
+                                    <strong>@Model?.ParcelInfo?.Parcel</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Address
+                                </td>
+                                <td>
+                                    <strong>@Model?.ParcelInfo?.AddressFull</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Jurisdiction
+                                </td>
+                                @if (Model?.Report?.Jurisdictions is not null && Model.Report.Jurisdictions.Any())
+                                {
+                                    <td>
+                                        @foreach (var city in Model.Report.Jurisdictions)
+                                        {
+                                            <a href="@city.Url" target="_blank">
+                                                <strong>@city.Name</strong>
+                                            </a>
+                                        }
+                                    </td>
+                                }
+                                else
+                                {
+                                    <td>
+                                        <strong>@Model?.ParcelInfo?.Jurisdiction</strong>
+                                    </td>
+                                }
+                            </tr>
+                            <tr>
+                                <td>
+                                    Zipcode
+                                </td>
+                                <td>
+                                    <strong>@Model?.ParcelInfo?.AddressZip</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Kroll Map
+                                </td>
+                                <td>
+                                    <strong>Page @Model?.Report?.KrollMapPage</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Thomas Guide
+                                </td>
+                                <td>
+                                    <strong>Page @Model?.Report?.ThomasGuidePage</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Drainage Basin
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.DrainageBasin</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="https://kingcounty.gov/services/environment/watersheds.aspx" target="_blank">Watershed</a>
+                                </td>
+                                <td>
+                                    <strong><a href="@Model?.Report?.WatershedLink" target="_blank">@Model?.Report?.Watershed</a></strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="http://www.govlink.org/watersheds/default.aspx" target="_blank">Water Resource Inventory Area (WRIA)</a>
+                                </td>
+                                <td>
+                                    <strong><a href="@Model?.Report?.WRIALink" target="_blank">@Model?.Report?.WRIAName (@Model?.Report?.WRIANumber)</a></strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Public Land Survery System (PLSS)
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.PLSS</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Latitude
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.Latitude</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Longitude
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.Longitude</strong>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col">
+                <p class="display-6">Electoral Districts</p>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <a href="https://kingcounty.gov/depts/elections.aspx" target="_blank">Voting District</a>
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.VotingDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                            <tr>
+                                <td>
+                                    <a href="https://kingcounty.gov/council/councilmembers/find_district.aspx" target="_blank">King County Council District</a>
+                                </td>
+                                <td>
+                                    <strong>District @Model?.Report?.CountyCouncilDistrict, <a href="@Model?.Report?.CountyCouncilMemberLink" target="_blank">@Model?.Report?.CountyCouncilMemberName</a> @Model?.Report?.CountyCouncilMemberPhoneNumber <a href="mailto:@Model?.Report?.CountyCouncilMemberEmail">Email</a></strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Congressional District
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.CongressionalDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Legislative District
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.LegislativeDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    School District
+                                </td>
+                                <td>
+                                    <strong><a href="@Model?.Report?.SchoolDistrictLink" target="_blank">@Model?.Report?.SchoolDistrict</a></strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Seattle School Board District
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.SchoolBoardDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    District Court Electoral District
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.DistrictCourtElectoralDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Regional Fire Authority
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.RegionalFireDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Fire District
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.FireDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Water District
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.WaterDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Sewer District
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.SewerDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Water & Sewer District
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.WaterAndSewerDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Parks & Recreation District
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.ParksAndRecreationDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Hospital District
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.HospitalDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Rural Library District
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.RuralLibraryDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Tribal Lands?
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.TribalLand</strong>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @if (Model?.Report?.Tukwila is not null)
+            {
+                <div class="col">
+                    <p class="display-6">City of Tukwila</p>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        Site Address
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.SiteAddress</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Zoning District
+                                    </td>
+                                    <td>
+                                        <a href="http://records.tukwilawa.gov/weblink/Browse.aspx?startid=16434&row=1&dbid=1&cr=1" target="_blank">@Model?.Report?.Tukwila.ZoningDistrict</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Zoning overlay
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.ZoningOverlay</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Comprehensive Plan Land Use Designation
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.CompPlanLandUseDesignation</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Wetlands on site
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.Wetlands</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Wetland buffer width
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.WetlandsBufferWidth</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Stream on site
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.Stream</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Stream buffer width
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.StreamBufferWidth</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Fish and Wildlife Habitat
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.FishAndWildlife</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Shoreline Jurisdiction
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.ShorelineJurisdiction</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Landslide hazards?
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.Landslide</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Seismic hazards?
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.Seismic</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Coal mine hazards?
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.Coalmine</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Water Service District
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.WaterServiceDistrict</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Sewer Service District
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.SewerServiceDistrict</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Storm Service District
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.StormServiceDistrict</strong>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        Power Service District
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.PowerServiceDistrict</strong>
+                                    </td>
+                                <tr>
+                                    <td>
+                                        Garbage Service District
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.GarbageServiceDistrict</strong>
+                                    </td>
+                                <tr>
+                                    <td>
+                                        Police Service District
+                                    </td>
+                                    <td>
+                                        <strong>@Model?.Report?.Tukwila?.PoliceServiceDistrict</strong>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <a class="btn btn-outline-primary" href="@Model?.Report?.Tukwila?.TukwilaMapLink" target="_blank">View in Tukwila's iMap</a>
+                </div>
+            }
+            <div class="col">
+                <p class="display-6">Planning and Critical Areas</p>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <a href="https://kingcounty.gov/services/gis/PropResearch/kc_zoning.aspx" target="_blank">Zoning</a>
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.Zoning</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="https://kingcounty.gov/depts/local-services/permits.aspx" target="_blank">Development Conditions</a>
+                                </td>
+                                @if (Model?.Report?.DevelopmentConditions is not null && Model.Report.DevelopmentConditions.Any())
+                                {
+                                    foreach (var devCond in Model.Report.DevelopmentConditions)
+                                    {
+                                        <td><strong>@devCond.Condition @devCond.Url</strong></td>
+                                    }
+                                }
+                                else
+                                {
+                                    <td><strong>None</strong></td>
+                                }
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="https://www5.kingcounty.gov/sdc/Metadata.aspx?Layer=complu" target="_blank">Comprehensive Plan Land Use Designation</a>
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.CompPlanLandUseDesignation</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="https://kingcounty.gov/depts/executive/performance-strategy-budget/regional-planning/overview.aspx" target="_blank">Urban Growth Area</a>
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.UrbanGrowthArea</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="https://kingcounty.gov/depts/local-services/programs/community-service-areas.aspx" target="_blank">Community Service Area</a>
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.CommunityServiceArea</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Coal mine hazards?
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.CoalMineHazard</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Erosion hazards?
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.ErosionHazard</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Landslide hazards?
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.LandslideHazard</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Seismic hazards?
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.SeismicHazard</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    100-year flood plain?
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.FloodPlain</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Community Planning Area
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.CommunityPlanningArea</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="https://kingcounty.gov/depts/dnrp.aspx" target="_blank">Sea Level Rise Risk Area</a>
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.SeaLevelRise</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="https://kingcounty.gov/depts/executive/performance-strategy-budget.aspx" target="_blank">Urban Unincorporated Status</a>
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.UrbanUnincorporatedStatus</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="https://www5.kingcounty.gov/sdc/Metadata.aspx?Layer=rural_town" target="_blank">Rural town?</a>
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.RuralTown</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="https://www5.kingcounty.gov/sdc/Metadata.aspx?Layer=wtr_serv&XMLAvail=True" target="_blank">Water service planning area</a>
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.WaterServicePlanningArea</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="https://kingcounty.gov/depts/local-services/roads/transportation-planning.aspx#cmp" target="_blank">Transportation Concurrency Management</a>
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.TransportationConcurrencyManagment</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Forest Production district?
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.ForestProductDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Agricultural Production district?
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.AgriculturalProductionDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="https://svwid.com/" target="_blank">Snoqualmie Valley watershed improvement district?</a>
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.SnoqualmieValleyWatershedImpDistrict</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="https://www5.kingcounty.gov/sdc/Metadata.aspx?Layer=cara&XMLAvail=True" target="_blank">Critical aquifer recharge area?</a>
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.AquiferRechargeArea</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    Wetlands at this parcel?
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.Wetlands</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="https://ecology.wa.gov/Spills-Cleanup/Contamination-cleanup/Cleanup-sites/Tacoma-smelter" target="_blank">Within the Tacoma Smelter Plume?</a>
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.TacomaSmelterPlume</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <a href="https://kingcounty.gov/services/environment/water-and-land/shorelines.aspx" target="_blank">Shoreline management designation</a>
+                                </td>
+                                <td>
+                                    <strong>@Model?.Report?.ShorelineManagementDesignation</strong>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="container">
+            <div class="row">
+                <div class="col">
+                    <p><b>Seattle</b></p>
+                    <div class="btn-group">
+                        <a class="btn btn-outline-primary" href="https://www5.kingcounty.gov/kcgisreports/dd_report.aspx?PIN=7010700760" target="_blank">Existing</a>
+                        <a class="btn btn-primary" href="?PIN=7010700760">New</a>
+                    </div>
+                </div>
+                <div class="col">
+                    <p><b>Senstive Area</b></p>
+                    <div class="btn-group">
+                        <a class="btn btn-outline-primary" href="https://www5.kingcounty.gov/kcgisreports/dd_report.aspx?PIN=1924089026" target="_blank">Existing</a>
+                        <a class="btn btn-primary" href="?PIN=1924089026">New</a>
+                    </div>
+                </div>
+                <div class="col">
+                    <p><b>Tukwila</b></p>
+                    <div class="btn-group">
+                        <a class="btn btn-outline-primary" href="https://www5.kingcounty.gov/kcgisreports/dd_report.aspx?PIN=0761000160" target="_blank">Existing</a>
+                        <a class="btn btn-primary" href="?PIN=0761000160">New</a>
+                    </div>
+                </div>
+                <div class="col">
+                    <p><b>No Address</b></p>
+                    <div class="btn-group">
+                        <a class="btn btn-outline-primary" href="https://www5.kingcounty.gov/kcgisreports/dd_report.aspx?PIN=0098300430" target="_blank">Existing</a>
+                        <a class="btn btn-primary" href="?PIN=0098300430">New</a>
+                    </div>
+                </div>
+                <div class="col">
+                    <p><b>Condo</b></p>
+                    <div class="btn-group">
+                        <a class="btn btn-outline-primary" href="https://www5.kingcounty.gov/kcgisreports/dd_report.aspx?PIN=202350019008" target="_blank">Existing</a>
+                        <a class="btn btn-primary" href="?PIN=202350019008">New</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
