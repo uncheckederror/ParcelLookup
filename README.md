@@ -16,6 +16,13 @@ Condo         |3.75s   |1.42s   |
 
 Were this prototype to continue I would like page load times to continue to improve where the best case takes less than one second and the worst case at most 2 seconds.
 
+# Styling Update
+This app uses the new King County LIQUID design system and is based on the work that the UX team is doing for the new County website and Sitecore upgrade project.
+
+Here is a side-by-side comparison of the existing app and this one using the same parcel data:
+
+![image](https://user-images.githubusercontent.com/11726956/180506431-27c44882-7e8f-470f-be04-6f9016afe1b4.png)
+
 # HTTP Request and Response workflow 🙋‍♂️
 ![image](https://user-images.githubusercontent.com/11726956/180094086-0e8d2385-040f-4aa6-9614-b99339cdb593.png)
 
