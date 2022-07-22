@@ -1,7 +1,7 @@
 # ParcelLookup 🏡
 This project is a prototype designed to replace King County's existing GIS Districts Reports web app.
 
-![localhost_7025__PIN=1924089026](https://user-images.githubusercontent.com/11726956/180100018-3b03c3c5-667f-4723-be1d-d920b7177c64.png)
+![Web capture_22-7-2022_11545_localhost](https://user-images.githubusercontent.com/11726956/180505344-05374e64-0b25-4c1d-a307-896213862cb0.jpeg)
 
 It faithfully reimplements the same functionally with the primary goal of improving page load times. You can test the performance improvement for yourself by running this app locally and using the example links on the default page to compare the load times for the Existing app and the New app (this project). I recommend using Chrome's inspect tool, going to the Network tab, and then hitting CTRL + F5 to clear the cache and reload the current page. You'll see the page load time on the graph and in stats on Network tab.
 
@@ -14,7 +14,7 @@ Tukwila       |9.72s   |2.49s   |
 No Address    |7.34s   |2.26s   |
 Condo         |3.75s   |1.42s   |
 
-Were this prototype to continue I would like page load times to continue to improve where the best case takes less than one second and the worst case at most 2 seconds. Currently report is minimally styled, so that we can easily convert it to the King County design system.
+Were this prototype to continue I would like page load times to continue to improve where the best case takes less than one second and the worst case at most 2 seconds.
 
 # HTTP Request and Response workflow 🙋‍♂️
 ![image](https://user-images.githubusercontent.com/11726956/180094086-0e8d2385-040f-4aa6-9614-b99339cdb593.png)
