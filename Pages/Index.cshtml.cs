@@ -88,7 +88,7 @@ namespace ParcelLookup.Pages
             var districtServicesUrl = $"{_configuration["KingCountyAPIs:DistrictReport"]}?f=pjson";
             var districts = await districtServicesUrl.GetJsonAsync<MapServiceDescription>();
 
-            // Reuse the extent from the map service definition because 
+            // Reuse the extent from the map service definition because we don't want to calculate it or query for it.
             var extent = $"{districts.initialExtent.xmax},{districts.initialExtent.ymax},{districts.initialExtent.xmin},{districts.initialExtent.ymin}";
             var parcelAddressAreaLayer = districts.layers.FirstOrDefault(x => x.name == "parcel_address_area")?.id;
             var layerServiceUrl = $"{_configuration["KingCountyAPIs:DistrictReport"]}{parcelAddressAreaLayer}/query";
@@ -153,14 +153,14 @@ namespace ParcelLookup.Pages
         /// <summary>
         /// Parse the data from the Map and API Querys into data model that we can easily render into HTML.
         /// 
-        /// This process would be easy were it not for the way that ArcGIS MapServices discribe their data.
-        /// To find the values we want we first have to loop through the data from every layer returned by our Identifiy query call here "results".
+        /// This process would be easy were it not for the way that ArcGIS MapServices describe their data.
+        /// To find the values we want we first must loop through the data from every layer returned by our Identify query call here "results".
         /// Once we've found the specific layer were interested in by checking for a specific layer name, because the objects in the "results" array are generic.
         /// Then we can check the attributes object to see if there is a value in the specific field we want.
         /// Attributes of a layer are key, value pairs because they can be added and removed at will in ArcGIS.
-        /// For our purposes this means we have to create an Attributes object that models all of the possible fields returned by this query
+        /// For our purposes this means we must create an Attributes object that models all the possible fields returned by this query
         /// so that we can deserialize the JSON response and get the data we want.
-        /// This is why the Attributes data model has 160 fields when we are really only interested in one or two values for each layer from that Attributes object.
+        /// Therefore, the Attributes data model has 160 fields when we are really only interested in one or two values for each layer from that Attributes object.
         /// I don't love this, but it does work.
         /// </summary>
         /// <param name="parcel"></param>

@@ -22,19 +22,20 @@ Here is a side-by-side comparison of the existing app and this one using the sam
 ![image](https://user-images.githubusercontent.com/11726956/180506431-27c44882-7e8f-470f-be04-6f9016afe1b4.png)
 
 # HTTP Request and Response workflow 🙋‍♂️
-This diagram show the request/response workflow that this app currently implments:
+This diagram shows the request/response workflow that this app currently implements:
 
 ![image](https://user-images.githubusercontent.com/11726956/180094086-0e8d2385-040f-4aa6-9614-b99339cdb593.png)
 
-I believe there maybe additional room for improvement by removing the HTTP call to the KC GIS Lookup API and implementing that functionally directly into this app using a database query. The response from the Districts Report service definition request could also be cached, as it doesn't change very often, so that we can skip that HTTP call nearly all of the time.
+I believe there maybe additional room for improvement by removing the HTTP call to the KC GIS Lookup API and implementing that functionally directly into this app using a database query. The response from the Districts Report service definition request could also be cached, as it doesn't change very often, so that we can skip that HTTP call nearly all the time.
 
 # How to contribute ✏
-If you find a bug or want a feature please file an issue with the steps to reproduce the bug or a discription of the functionally you need.
+If you find a bug or want a feature, please file an issue with the steps to reproduce the bug or a description of the functionally you need.
 
 # How to run 👟
 - Install Visual Studio 2022 on your machine.
 - Clone this repo to your machine.
 - Open the root folder of this repo.
-- Lanuch the project into Visual Stuido by double-clicking the "ParcelLookup.sln" file (or opening it from Visual Studio using the file explorer pane).
+- Launch the project into Visual Studio by double-clicking the "ParcelLookup.sln" file (or opening it from Visual Studio using the file explorer pane).
 - Run the project in debug mode by hitting the F5 key or clicking on the green arrow near the center of the top navbar in Visual Studio. 
 - Have fun reading the District Reports for the example parcels on the default page. 🚀
+
