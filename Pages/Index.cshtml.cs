@@ -292,7 +292,7 @@ namespace ParcelLookup.Pages
                 conditions.Add(new DistrictsReport.DevelopmentCondition { Condition = condition.attributes?.COND_CODE ?? string.Empty, Url = condition.attributes?.URL ?? string.Empty });
             }
 
-            var compPlanResults = matchingDistricts.results.Where(x => x.layerName is "complu").Select(x => x?.attributes?.CPLU).ToArray();
+            var compPlanResults = matchingDistricts.results.Where(x => x.layerName is "complu").Select(x => GetLandUseCodeByShortCode(x?.attributes?.CPLU)).ToArray();
             var compPlan = compPlanResults.Length > 1 ? string.Join(" and ", compPlanResults) : compPlanResults.FirstOrDefault();
 
             var ugaResults = matchingDistricts.results.Where(x => x.layerName is "urban_growth").Select(x => x?.attributes?.UGASIDE is "u" ? "Urban" : "Rural").ToArray();
@@ -616,6 +616,33 @@ namespace ParcelLookup.Pages
                 "8" => configuration["WRIALinks:8"],
                 "9" => configuration["WRIALinks:9"],
                 "10" => configuration["WRIALinks:10"],
+                _ => string.Empty,
+            };
+        }
+
+        private static string GetLandUseCodeByShortCode(string landUseCode)
+        {
+            return landUseCode switch
+            {
+                "ac" => "Unincorporated Activity Center (ac)",
+                "ag" => "Agriculture (ag)",
+                "cb" => "Community Business Center (cb)",
+                "co" => "Commercial Outside of Centers (co)",
+                "f" => "Forestry (f)",
+                "gb" => "Greenbelt / Urban Separator (gb)",
+                "i" => "Industrial (i)",
+                "m" => "Mining (m)",
+                "nb" => "Neighborhood Business Center (nb)",
+                "os" => "King County Open Space System (os)",
+                "rn" => "Rural Neighborhood Commercial Center (rn)",
+                "ra" => "Rural Area (1 dwelling unit / 2.5 - 10acres) (ra)",
+                "rt" => "Rural Town (rt)",
+                "rx" => "Rural City Urban Growth Area (rx)",
+                "uh" => "Urban Residential, High (> 12 dwelling unit / acre) (uh)",
+                "ul" => "Urban Residential, Low (1 dwelling unit / acre) (ul)",
+                "um" => "Urban Residential, Medium (4 - 12 dwelling unit / acre) (um)",
+                "upd" => "Urban Planned Development (upd)",
+                "op" => "Other Parks/ Wilderness (op)",
                 _ => string.Empty,
             };
         }
