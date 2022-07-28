@@ -10,7 +10,7 @@
 </head>
 <body id="mainBody" class="albacore mb-0">
     <a href="#maincontent" class="sr-only sr-only-focusable">Skip to main content</a>
-    <header class="global-header mb-0">
+    <header class="global-header mb-0 d-print-none">
         <div class="container-fluid">
             <div class="row">
                 <div class="order-1 col-6 col-md-auto">
@@ -76,7 +76,7 @@
     <main role="main" class="pb-3">
         @RenderBody()
     </main>
-    <footer>
+    <footer class="d-print-none">
         <div class="index-strip">
             <div class="container">
                 <ul class="">
