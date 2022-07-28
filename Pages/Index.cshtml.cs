@@ -197,8 +197,10 @@ namespace ParcelLookup.Pages
             }
 
             var zipcode = matchingDistricts.results.Where(x => x.layerName is "zipcode").FirstOrDefault()?.attributes?.ZIPCODE;
-            var krollPage = matchingDistricts.results.Where(x => x.layerName is "krollidx").FirstOrDefault()?.attributes?.KROLL;
-            var thomasPage = matchingDistricts.results.Where(x => x.layerName is "thom_bros").FirstOrDefault()?.attributes?.PAGENUM;
+            var krollPageResults = matchingDistricts.results.Where(x => x.layerName is "krollidx").Select(x => x?.attributes?.KROLL).ToArray();
+            var krollPage = krollPageResults.Length > 1 ? string.Join(" and ", krollPageResults) : krollPageResults.FirstOrDefault();
+            var thomasPageResults = matchingDistricts.results.Where(x => x.layerName is "thom_bros").Select(x => x?.attributes?.PAGENUM).ToArray();
+            var thomasPage = thomasPageResults.Length > 1 ? string.Join(" and ", thomasPageResults) : thomasPageResults.FirstOrDefault();
 
             // Handle when there are multiple results that apply to a parcel.
             var drainageBasinResults = matchingDistricts.results.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.BASIN_NAME).ToArray();
