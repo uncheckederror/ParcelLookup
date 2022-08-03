@@ -82,7 +82,7 @@ namespace ParcelLookup.Pages
         /// </summary>
         /// <param name="parcel"></param>
         /// <returns></returns>
-        private async Task<DistrictsReport> DistrictsReport(ParcelInfo parcel)
+        public async Task<DistrictsReport> DistrictsReport(ParcelInfo parcel)
         {
             // Get the layer definitions for the Districts Report map service.
             var districtServicesUrl = $"{_configuration["KingCountyAPIs:DistrictReport"]}?f=pjson";
@@ -104,7 +104,7 @@ namespace ParcelLookup.Pages
             var pinQuery = await pinQueryResponse.GetJsonAsync<MapServiceLayerQuery>();
 
             // Apply the buffer to the geometry of our parcel number query result.
-            if (pinQuery is not null && BufferDistance is not 0)
+            if (pinQuery.features is not null && pinQuery.features.Any() && BufferDistance is not 0)
             {
                 var buffered = BufferParcel(pinQuery, districts.spatialReference.wkid);
 
@@ -167,20 +167,23 @@ namespace ParcelLookup.Pages
         /// <param name="pinQuery"></param>
         /// <param name="matchingDistricts"></param>
         /// <returns></returns>
-        private DistrictsReport GetFormattedDistrictsReport(ParcelInfo? parcel, MapServiceLayerQuery? pinQuery, DistrictsReportIdentify matchingDistricts)
+        public DistrictsReport GetFormattedDistrictsReport(ParcelInfo? parcel, MapServiceLayerQuery? pinQuery, DistrictsReportIdentify? matchingDistricts)
         {
             // Force all the layernames to be lowercase to regularize them and prevent mismatching.
-            foreach (var layer in matchingDistricts.results)
+            if (matchingDistricts?.results is not null)
             {
-                layer.layerName = layer.layerName.ToLower(System.Globalization.CultureInfo.CurrentCulture);
+                foreach (var layer in matchingDistricts.results)
+                {
+                    layer.layerName = layer.layerName.ToLower(System.Globalization.CultureInfo.CurrentCulture);
+                }
             }
 
             var parcelNumber = pinQuery?.features?.FirstOrDefault()?.attributes?.PIN ?? parcel!.Parcel;
-            var address = matchingDistricts.results.Where(x => x.layerName is "parcel_address_area").FirstOrDefault()?.attributes?.FullAddr;
+            var address = matchingDistricts?.results?.Where(x => x.layerName is "parcel_address_area").FirstOrDefault()?.attributes?.FullAddr;
 
-            var jurisdictionResults = matchingDistricts.results.Where(x => x.layerName is "city").ToArray();
+            var jurisdictionResults = matchingDistricts?.results?.Where(x => x.layerName is "city").ToArray();
             var jurisdictions = new List<DistrictsReport.ParcelJurisdiction>();
-            if (jurisdictionResults.Length > 1)
+            if (jurisdictionResults?.Length > 1)
             {
                 foreach (var city in jurisdictionResults)
                 {
@@ -191,175 +194,191 @@ namespace ParcelLookup.Pages
             }
             else
             {
-                var name = jurisdictionResults.FirstOrDefault()?.attributes?.CITYNAME ?? "King County";
+                var name = jurisdictionResults?.FirstOrDefault()?.attributes?.CITYNAME ?? "King County";
                 var link = GetJuristictionLinkByParcelNumber(parcel!.Parcel, name, _configuration);
                 jurisdictions.Add(new DistrictsReport.ParcelJurisdiction { Name = name, Url = link });
             }
 
-            var zipcode = matchingDistricts.results.Where(x => x.layerName is "zipcode").FirstOrDefault()?.attributes?.ZIPCODE;
-            var krollPageResults = matchingDistricts.results.Where(x => x.layerName is "krollidx").Select(x => x?.attributes?.KROLL).ToArray();
-            var krollPage = krollPageResults.Length > 1 ? string.Join(" and ", krollPageResults) : krollPageResults.FirstOrDefault();
-            var thomasPageResults = matchingDistricts.results.Where(x => x.layerName is "thom_bros").Select(x => x?.attributes?.PAGENUM).ToArray();
-            var thomasPage = thomasPageResults.Length > 1 ? string.Join(" and ", thomasPageResults) : thomasPageResults.FirstOrDefault();
+            var zipcode = matchingDistricts?.results?.Where(x => x.layerName is "zipcode").FirstOrDefault()?.attributes?.ZIPCODE;
+            var krollPageResults = matchingDistricts?.results?.Where(x => x.layerName is "krollidx").Select(x => x?.attributes?.KROLL).ToArray();
+            var krollPage = krollPageResults?.Length > 1 ? string.Join(" and ", krollPageResults) : krollPageResults?.FirstOrDefault();
+            var thomasPageResults = matchingDistricts?.results?.Where(x => x.layerName is "thom_bros").Select(x => x?.attributes?.PAGENUM).ToArray();
+            var thomasPage = thomasPageResults?.Length > 1 ? string.Join(" and ", thomasPageResults) : thomasPageResults?.FirstOrDefault();
 
             // Handle when there are multiple results that apply to a parcel.
-            var drainageBasinResults = matchingDistricts.results.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.BASIN_NAME).ToArray();
-            var drainageBasin = drainageBasinResults.Length > 1 ? string.Join(" and ", drainageBasinResults) : drainageBasinResults.FirstOrDefault();
+            var drainageBasinResults = matchingDistricts?.results?.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.BASIN_NAME).ToArray();
+            var drainageBasin = drainageBasinResults?.Length > 1 ? string.Join(" and ", drainageBasinResults) : drainageBasinResults?.FirstOrDefault();
 
-            var watershedResults = matchingDistricts.results.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.WTRSHD_NAME).ToArray();
-            var watershed = watershedResults.Length > 1 ? string.Join(" and ", watershedResults) : watershedResults.FirstOrDefault();
+            var watershedResults = matchingDistricts?.results?.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.WTRSHD_NAME).ToArray();
+            var watershed = watershedResults?.Length > 1 ? string.Join(" and ", watershedResults) : watershedResults?.FirstOrDefault();
             var watershedLink = GetWatershedLinkByName(watershed, _configuration);
 
-            var wriaNameResults = matchingDistricts.results.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.WRIA_NAME).ToArray();
-            var wriaName = wriaNameResults.Length > 1 ? string.Join(" and ", wriaNameResults) : wriaNameResults.FirstOrDefault();
+            var wriaNameResults = matchingDistricts?.results?.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.WRIA_NAME).ToArray();
+            var wriaName = wriaNameResults?.Length > 1 ? string.Join(" and ", wriaNameResults) : wriaNameResults?.FirstOrDefault();
 
-            var wriaNumberResults = matchingDistricts.results.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.WRIA_NO).ToArray();
-            var wriaNumber = wriaNumberResults.Length > 1 ? string.Join(" and ", wriaNumberResults) : wriaNumberResults.FirstOrDefault();
+            var wriaNumberResults = matchingDistricts?.results?.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.WRIA_NO).ToArray();
+            var wriaNumber = wriaNumberResults?.Length > 1 ? string.Join(" and ", wriaNumberResults) : wriaNumberResults?.FirstOrDefault();
             var wriaLink = GetWRIALinkByWRIANumber(wriaNumber, _configuration);
 
-            var votingDistrictResults = matchingDistricts.results.Where(x => x.layerName is "votdst").Select(x => x?.attributes?.NAME).ToArray();
-            var votingDistrict = votingDistrictResults.Length > 1 ? string.Join(" and ", votingDistrictResults) : votingDistrictResults.FirstOrDefault();
+            var votingDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "votdst").Select(x => x?.attributes?.NAME).ToArray();
+            var votingDistrict = votingDistrictResults?.Length > 1 ? string.Join(" and ", votingDistrictResults) : votingDistrictResults?.FirstOrDefault();
 
-            var councilDistrict = matchingDistricts.results.Where(x => x.layerName is "kccdst").FirstOrDefault()?.attributes?.kccdst;
-            var councilMemberName = matchingDistricts.results.Where(x => x.layerName is "kccdst").FirstOrDefault()?.attributes?.COUNCILMEM;
-            var councilMemberPhone = matchingDistricts.results.Where(x => x.layerName is "kccdst").FirstOrDefault()?.attributes?.PHONE;
-            var councilMemberEmail = matchingDistricts.results.Where(x => x.layerName is "kccdst").FirstOrDefault()?.attributes?.EMAIL;
-            var councilMemberLink = matchingDistricts.results.Where(x => x.layerName is "kccdst").FirstOrDefault()?.attributes?.URL;
+            var councilDistrict = matchingDistricts?.results?.Where(x => x.layerName is "kccdst").FirstOrDefault()?.attributes?.kccdst;
+            var councilMemberName = matchingDistricts?.results?.Where(x => x.layerName is "kccdst").FirstOrDefault()?.attributes?.COUNCILMEM;
+            var councilMemberPhone = matchingDistricts?.results?.Where(x => x.layerName is "kccdst").FirstOrDefault()?.attributes?.PHONE;
+            var councilMemberEmail = matchingDistricts?.results?.Where(x => x.layerName is "kccdst").FirstOrDefault()?.attributes?.EMAIL;
+            var councilMemberLink = matchingDistricts?.results?.Where(x => x.layerName is "kccdst").FirstOrDefault()?.attributes?.URL;
 
-            var congessionalDistrictResults = matchingDistricts.results.Where(x => x.layerName is "congdst").Select(x => x?.attributes?.CONGDST).ToArray();
-            var congessionalDistrict = congessionalDistrictResults.Length > 1 ? string.Join(" and ", congessionalDistrictResults) : congessionalDistrictResults.FirstOrDefault();
+            var congessionalDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "congdst").Select(x => x?.attributes?.CONGDST).ToArray();
+            var congessionalDistrict = congessionalDistrictResults?.Length > 1 ? string.Join(" and ", congessionalDistrictResults) : congessionalDistrictResults?.FirstOrDefault();
 
-            var legislativeDistrictResults = matchingDistricts.results.Where(x => x.layerName is "legdst").Select(x => x?.attributes?.LEGDST).ToArray();
-            var legislativeDistrict = legislativeDistrictResults.Length > 1 ? string.Join(" and ", legislativeDistrictResults) : legislativeDistrictResults.FirstOrDefault();
+            var legislativeDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "legdst").Select(x => x?.attributes?.LEGDST).ToArray();
+            var legislativeDistrict = legislativeDistrictResults?.Length > 1 ? string.Join(" and ", legislativeDistrictResults) : legislativeDistrictResults?.FirstOrDefault();
 
-            var schoolDistrictResults = matchingDistricts.results.Where(x => x.layerName is "schdst").Select(x => $"{x?.attributes?.NAME} {x?.attributes?.SCHDST}").ToArray();
-            var schoolDistrict = schoolDistrictResults.Length > 1 ? string.Join(" and ", schoolDistrictResults) : schoolDistrictResults.FirstOrDefault();
-            var schoolDistrictLink = GetSchoolDistrictLinkByNumber(matchingDistricts.results.Where(x => x.layerName is "schdst").FirstOrDefault()?.attributes?.SCHDST ?? string.Empty, _configuration);
+            var schoolDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "schdst").Select(x => $"{x?.attributes?.NAME} {x?.attributes?.SCHDST}").ToArray();
+            var schoolDistrict = schoolDistrictResults?.Length > 1 ? string.Join(" and ", schoolDistrictResults) : schoolDistrictResults?.FirstOrDefault();
+            var schoolDistrictLink = GetSchoolDistrictLinkByNumber(matchingDistricts?.results?.Where(x => x.layerName is "schdst").FirstOrDefault()?.attributes?.SCHDST ?? string.Empty, _configuration);
 
-            var schoolDistrictBoardResults = matchingDistricts.results.Where(x => x.layerName is "dirdst").Select(x => x?.attributes?.NAME).ToArray();
-            var schoolDistrictBoard = schoolDistrictBoardResults.Length > 1 ? string.Join(" and ", schoolDistrictBoardResults) : schoolDistrictBoardResults.FirstOrDefault();
+            var schoolDistrictBoardResults = matchingDistricts?.results?.Where(x => x.layerName is "dirdst").Select(x => x?.attributes?.NAME).ToArray();
+            var schoolDistrictBoard = schoolDistrictBoardResults?.Length > 1 ? string.Join(" and ", schoolDistrictBoardResults) : schoolDistrictBoardResults?.FirstOrDefault();
 
-            var districtCourtElectoralDistrictResults = matchingDistricts.results.Where(x => x.layerName is "juddst").Select(x => x?.attributes?.NAME).ToArray();
-            var districtCourtElectoralDistrict = districtCourtElectoralDistrictResults.Length > 1 ? string.Join(" and ", districtCourtElectoralDistrictResults) : districtCourtElectoralDistrictResults.FirstOrDefault();
+            var districtCourtElectoralDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "juddst").Select(x => x?.attributes?.NAME).ToArray();
+            var districtCourtElectoralDistrict = districtCourtElectoralDistrictResults?.Length > 1 ? string.Join(" and ", districtCourtElectoralDistrictResults) : districtCourtElectoralDistrictResults?.FirstOrDefault();
 
-            var regionalFireDistrictResults = matchingDistricts.results.Where(x => x.layerName is "rfadst").Select(x => x?.attributes?.NAME).ToArray();
-            var regionalFireDistrict = regionalFireDistrictResults.Length > 1 ? string.Join(" and ", regionalFireDistrictResults) : regionalFireDistrictResults.FirstOrDefault();
+            var regionalFireDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "rfadst").Select(x => x?.attributes?.NAME).ToArray();
+            var regionalFireDistrict = regionalFireDistrictResults?.Length > 1 ? string.Join(" and ", regionalFireDistrictResults) : regionalFireDistrictResults?.FirstOrDefault();
 
-            var fireDistrictResults = matchingDistricts.results.Where(x => x.layerName is "firdst").Select(x => x?.attributes?.NAME).ToArray();
-            var fireDistrict = fireDistrictResults.Length > 1 ? string.Join(" and ", fireDistrictResults) : fireDistrictResults.FirstOrDefault();
+            var fireDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "firdst").Select(x => x?.attributes?.NAME).ToArray();
+            var fireDistrict = fireDistrictResults?.Length > 1 ? string.Join(" and ", fireDistrictResults) : fireDistrictResults?.FirstOrDefault();
 
-            var waterDistrictResults = matchingDistricts.results.Where(x => x.layerName is "wtrdst").Select(x => x?.attributes?.NAME).ToArray();
-            var waterDistrict = waterDistrictResults.Length > 1 ? string.Join(" and ", waterDistrictResults) : waterDistrictResults.FirstOrDefault();
+            var waterDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "wtrdst").Select(x => x?.attributes?.NAME).ToArray();
+            var waterDistrict = waterDistrictResults?.Length > 1 ? string.Join(" and ", waterDistrictResults) : waterDistrictResults?.FirstOrDefault();
 
-            var sewerDistrictResults = matchingDistricts.results.Where(x => x.layerName is "swrdst").Select(x => x?.attributes?.NAME).ToArray();
-            var sewerDistrict = sewerDistrictResults.Length > 1 ? string.Join(" and ", sewerDistrictResults) : sewerDistrictResults.FirstOrDefault();
+            var sewerDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "swrdst").Select(x => x?.attributes?.NAME).ToArray();
+            var sewerDistrict = sewerDistrictResults?.Length > 1 ? string.Join(" and ", sewerDistrictResults) : sewerDistrictResults?.FirstOrDefault();
 
-            var waterSewerDistrictResults = matchingDistricts.results.Where(x => x.layerName is "wsdst").Select(x => x?.attributes?.NAME).ToArray();
-            var waterSewerDistrict = waterSewerDistrictResults.Length > 1 ? string.Join(" and ", waterSewerDistrictResults) : waterSewerDistrictResults.FirstOrDefault();
+            var waterSewerDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "wsdst").Select(x => x?.attributes?.NAME).ToArray();
+            var waterSewerDistrict = waterSewerDistrictResults?.Length > 1 ? string.Join(" and ", waterSewerDistrictResults) : waterSewerDistrictResults?.FirstOrDefault();
 
-            var parkDistrictResults = matchingDistricts.results.Where(x => x.layerName is "prkdst").Select(x => x?.attributes?.NAME).ToArray();
-            var parkDistrict = parkDistrictResults.Length > 1 ? string.Join(" and ", parkDistrictResults) : parkDistrictResults.FirstOrDefault();
+            var parkDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "prkdst").Select(x => x?.attributes?.NAME).ToArray();
+            var parkDistrict = parkDistrictResults?.Length > 1 ? string.Join(" and ", parkDistrictResults) : parkDistrictResults?.FirstOrDefault();
 
-            var hospitalDistrictResults = matchingDistricts.results.Where(x => x.layerName is "hspdst").Select(x => x?.attributes?.NAME).ToArray();
-            var hospitalDistrict = hospitalDistrictResults.Length > 1 ? string.Join(" and ", hospitalDistrictResults) : hospitalDistrictResults.FirstOrDefault();
+            var hospitalDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "hspdst").Select(x => x?.attributes?.NAME).ToArray();
+            var hospitalDistrict = hospitalDistrictResults?.Length > 1 ? string.Join(" and ", hospitalDistrictResults) : hospitalDistrictResults?.FirstOrDefault();
 
-            var libraryDistrictResults = matchingDistricts.results.Where(x => x.layerName is "libdst").Select(x => x?.attributes?.NAME).ToArray();
-            var libraryDistrict = libraryDistrictResults.Length > 1 ? string.Join(" and ", libraryDistrictResults) : libraryDistrictResults.FirstOrDefault();
+            var libraryDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "libdst").Select(x => x?.attributes?.NAME).ToArray();
+            var libraryDistrict = libraryDistrictResults?.Length > 1 ? string.Join(" and ", libraryDistrictResults) : libraryDistrictResults?.FirstOrDefault();
 
-            var tribalLand = matchingDistricts.results.Where(x => x.layerName is "tribal_lands").FirstOrDefault();
+            var tribalLand = matchingDistricts?.results?.Where(x => x.layerName is "tribal_lands").FirstOrDefault();
 
             // Handle zoning
-            var zoningResults = matchingDistricts.results.Where(x => x.layerName is "zoning").ToArray();
+            var zoningResults = matchingDistricts?.results?.Where(x => x.layerName is "zoning").ToArray();
             var zones = new List<string>();
-            foreach (var zone in zoningResults)
+            if (zoningResults is not null && zoningResults.Any())
             {
-                var currentZone = zone.attributes?.CURRZONE;
-                var potential = zone.attributes?.POTENTIAL;
-                if (string.IsNullOrWhiteSpace(potential))
+                foreach (var zone in zoningResults)
                 {
-                    zones.Add(currentZone);
-                }
-                else
-                {
-                    zones.Add($"{currentZone}, {potential} (Potential)");
+                    var currentZone = zone.attributes?.CURRZONE;
+                    var potential = zone.attributes?.POTENTIAL;
+                    if (string.IsNullOrWhiteSpace(potential) && !string.IsNullOrWhiteSpace(currentZone))
+                    {
+                        zones.Add(currentZone);
+                    }
+                    else
+                    {
+                        zones.Add($"{currentZone}, {potential} (Potential)");
+                    }
                 }
             }
+
             var zoning = zones.Count > 1 ? string.Join(" and ", zones) : zones.FirstOrDefault();
 
             // Handle development conditions
-            var conditionResults = matchingDistricts.results.Where(x => x.layerName is "development_condition").ToArray();
+            var conditionResults = matchingDistricts?.results?.Where(x => x.layerName is "development_condition").ToArray();
             var conditions = new List<DistrictsReport.DevelopmentCondition>();
-            foreach (var condition in conditionResults)
+            if (conditionResults is not null && conditionResults.Any())
             {
-                conditions.Add(new DistrictsReport.DevelopmentCondition { Condition = condition.attributes?.COND_CODE ?? string.Empty, Url = condition.attributes?.URL ?? string.Empty });
+                foreach (var condition in conditionResults)
+                {
+                    conditions.Add(new DistrictsReport.DevelopmentCondition { Condition = condition.attributes?.COND_CODE ?? string.Empty, Url = condition.attributes?.URL ?? string.Empty });
+                }
             }
 
-            var compPlanResults = matchingDistricts.results.Where(x => x.layerName is "complu").Select(x => GetLandUseCodeByShortCode(x?.attributes?.CPLU)).ToArray();
-            var compPlan = compPlanResults.Length > 1 ? string.Join(" and ", compPlanResults) : compPlanResults.FirstOrDefault();
+            var compPlanResults = matchingDistricts?.results?.Where(x => x.layerName is "complu").Select(x => GetLandUseCodeByShortCode(x?.attributes?.CPLU)).ToArray();
+            var compPlan = compPlanResults?.Length > 1 ? string.Join(" and ", compPlanResults) : compPlanResults?.FirstOrDefault();
 
-            var ugaResults = matchingDistricts.results.Where(x => x.layerName is "urban_growth").Select(x => x?.attributes?.UGASIDE is "u" ? "Urban" : "Rural").ToArray();
-            var uga = ugaResults.Length > 1 ? string.Join(" and ", ugaResults) : ugaResults.FirstOrDefault();
+            var ugaResults = matchingDistricts?.results?.Where(x => x.layerName is "urban_growth").Select(x => x?.attributes?.UGASIDE is "u" ? "Urban" : "Rural").ToArray();
+            var uga = ugaResults?.Length > 1 ? string.Join(" and ", ugaResults) : ugaResults?.FirstOrDefault();
 
-            var communityServiceResults = matchingDistricts.results.Where(x => x.layerName is "community_service_area").Select(x => x?.attributes?.CSA_NAME).ToArray();
-            var communityService = communityServiceResults.Length > 1 ? string.Join(" and ", communityServiceResults) : communityServiceResults.FirstOrDefault();
+            var communityServiceResults = matchingDistricts?.results?.Where(x => x.layerName is "community_service_area").Select(x => x?.attributes?.CSA_NAME).ToArray();
+            var communityService = communityServiceResults?.Length > 1 ? string.Join(" and ", communityServiceResults) : communityServiceResults?.FirstOrDefault();
 
-            var communityPlanResults = matchingDistricts.results.Where(x => x.layerName is "community_plan").Select(x => x?.attributes?.AREANAME).ToArray();
-            var communityPlan = communityPlanResults.Length > 1 ? string.Join(" and ", communityPlanResults) : communityPlanResults.FirstOrDefault();
+            var communityPlanResults = matchingDistricts?.results?.Where(x => x.layerName is "community_plan").Select(x => x?.attributes?.AREANAME).ToArray();
+            var communityPlan = communityPlanResults?.Length > 1 ? string.Join(" and ", communityPlanResults) : communityPlanResults?.FirstOrDefault();
 
-            var coalMine = matchingDistricts.results.Where(x => x.layerName is "coalmine").FirstOrDefault();
-            var erosion = matchingDistricts.results.Where(x => x.layerName is "erode").FirstOrDefault();
-            var landslide = matchingDistricts.results.Where(x => x.layerName is "slide_sao").FirstOrDefault();
-            var seismic = matchingDistricts.results.Where(x => x.layerName is "seism").FirstOrDefault();
-            var floodplain = matchingDistricts.results.Where(x => x.layerName is "fldplain").FirstOrDefault();
-            var sealevelrise = matchingDistricts.results.Where(x => x.layerName is "sea_level_rise").FirstOrDefault();
+            var coalMine = matchingDistricts?.results?.Where(x => x.layerName is "coalmine").FirstOrDefault();
+            var erosion = matchingDistricts?.results?.Where(x => x.layerName is "erode").FirstOrDefault();
+            var landslide = matchingDistricts?.results?.Where(x => x.layerName is "slide_sao").FirstOrDefault();
+            var seismic = matchingDistricts?.results?.Where(x => x.layerName is "seism").FirstOrDefault();
+            var floodplain = matchingDistricts?.results?.Where(x => x.layerName is "fldplain").FirstOrDefault();
+            var sealevelrise = matchingDistricts?.results?.Where(x => x.layerName is "sea_level_rise").FirstOrDefault();
 
-            var potentialAnnexationResults = matchingDistricts.results.Where(x => x.layerName is "paa").Select(x => $"{x?.attributes?.Uninc_Urban_Category} : {x?.attributes?.UniqueName}").ToArray();
-            var potentialAnnexations = potentialAnnexationResults.Length > 1 ? string.Join(" and ", potentialAnnexationResults) : potentialAnnexationResults.FirstOrDefault();
+            var potentialAnnexationResults = matchingDistricts?.results?.Where(x => x.layerName is "paa").Select(x => $"{x?.attributes?.Uninc_Urban_Category} : {x?.attributes?.UniqueName}").ToArray();
+            var potentialAnnexations = potentialAnnexationResults?.Length > 1 ? string.Join(" and ", potentialAnnexationResults) : potentialAnnexationResults?.FirstOrDefault();
 
-            var ruralTownResults = matchingDistricts.results.Where(x => x.layerName is "rural_town").Select(x => x?.attributes?.TOWN_NAME).ToArray();
-            var ruralTown = ruralTownResults.Length > 1 ? string.Join(" and ", ruralTownResults) : ruralTownResults.FirstOrDefault();
+            var ruralTownResults = matchingDistricts?.results?.Where(x => x.layerName is "rural_town").Select(x => x?.attributes?.TOWN_NAME).ToArray();
+            var ruralTown = ruralTownResults?.Length > 1 ? string.Join(" and ", ruralTownResults) : ruralTownResults?.FirstOrDefault();
 
-            var waterServiceAreaResults = matchingDistricts.results.Where(x => x.layerName is "wtr_serv").Select(x => x?.attributes?.NAME).ToArray();
-            var waterServiceArea = waterServiceAreaResults.Length > 1 ? string.Join(" and ", waterServiceAreaResults) : waterServiceAreaResults.FirstOrDefault();
+            var waterServiceAreaResults = matchingDistricts?.results?.Where(x => x.layerName is "wtr_serv").Select(x => x?.attributes?.NAME).ToArray();
+            var waterServiceArea = waterServiceAreaResults?.Length > 1 ? string.Join(" and ", waterServiceAreaResults) : waterServiceAreaResults?.FirstOrDefault();
 
-            var travelshedResults = matchingDistricts.results.Where(x => x.layerName is "travelshed").Select(x => $"{x?.attributes?.STATUS} - {x?.attributes?.SHEDNAME} Travelshed").ToArray();
-            var travelshed = travelshedResults.Length > 1 ? string.Join(" and ", travelshedResults) : travelshedResults.FirstOrDefault();
+            var travelshedResults = matchingDistricts?.results?.Where(x => x.layerName is "travelshed").Select(x => $"{x?.attributes?.STATUS} - {x?.attributes?.SHEDNAME} Travelshed").ToArray();
+            var travelshed = travelshedResults?.Length > 1 ? string.Join(" and ", travelshedResults) : travelshedResults?.FirstOrDefault();
 
-            var forestProductionDistrict = matchingDistricts.results.Where(x => x.layerName is "forpddst").FirstOrDefault();
-            var agProductionDistrict = matchingDistricts.results.Where(x => x.layerName is "agrpddst").FirstOrDefault();
+            var forestProductionDistrict = matchingDistricts?.results?.Where(x => x.layerName is "forpddst").FirstOrDefault();
+            var agProductionDistrict = matchingDistricts?.results?.Where(x => x.layerName is "agrpddst").FirstOrDefault();
 
-            var smeltPlumeDistrict = matchingDistricts.results.Where(x => x.layerName is "tacomasmelterplume").Select(x => x?.attributes?.NAME).ToArray();
-            var smeltPlume = smeltPlumeDistrict.Length > 1 ? string.Join(" and ", smeltPlumeDistrict) : smeltPlumeDistrict.FirstOrDefault();
+            var smeltPlumeDistrict = matchingDistricts?.results?.Where(x => x.layerName is "tacomasmelterplume").Select(x => x?.attributes?.NAME).ToArray();
+            var smeltPlume = smeltPlumeDistrict?.Length > 1 ? string.Join(" and ", smeltPlumeDistrict) : smeltPlumeDistrict?.FirstOrDefault();
 
-            var snoqualmieValleyWatershedResults = matchingDistricts.results.Where(x => x.layerName is "snoqvaly_wshedimprovdist").FirstOrDefault();
+            var snoqualmieValleyWatershedResults = matchingDistricts?.results?.Where(x => x.layerName is "snoqvaly_wshedimprovdist").FirstOrDefault();
 
-            var criticalAquafierResult = matchingDistricts.results.Where(x => x.layerName is "cara").Select(x => x?.attributes?.CAT_CODE).ToArray();
-            var criticalAquafier = criticalAquafierResult.Length > 1 ? string.Join(" and ", criticalAquafierResult) : criticalAquafierResult.FirstOrDefault();
+            var criticalAquafierResult = matchingDistricts?.results?.Where(x => x.layerName is "cara").Select(x => x?.attributes?.CAT_CODE).ToArray();
+            var criticalAquafier = criticalAquafierResult?.Length > 1 ? string.Join(" and ", criticalAquafierResult) : criticalAquafierResult?.FirstOrDefault();
 
-            var wetlandResults = matchingDistricts.results.Where(x => x.layerName is "sao_wetland").ToArray();
+            var wetlandResults = matchingDistricts?.results?.Where(x => x.layerName is "sao_wetland").ToArray();
             var wetlands = new List<string>();
-            foreach (var wetland in wetlandResults)
+            if (wetlandResults is not null && wetlandResults.Any())
             {
-                var type = wetland?.attributes?.TYPE_ ?? "Not Designated";
-                var currency = wetland?.attributes?.CURRENCY_;
-                var source = wetland?.attributes?.SOURCE_;
-                wetlands.Add($"Rating = {type} Currency = {type} Source = {type}");
+                foreach (var wetland in wetlandResults)
+                {
+                    var type = wetland?.attributes?.TYPE_ ?? "Not Designated";
+                    var currency = wetland?.attributes?.CURRENCY_;
+                    var source = wetland?.attributes?.SOURCE_;
+                    wetlands.Add($"Rating = {type} Currency = {type} Source = {type}");
+                }
             }
 
             var wetlanding = wetlands.Count > 1 ? string.Join(" and ", wetlands) : wetlands.FirstOrDefault();
 
-            var shorelineManagementResults = matchingDistricts.results.Where(x => x.layerName is "shorelinemanagement").Select(x => x?.attributes?.DESIG).ToArray();
-            var shorelineManagement = shorelineManagementResults.Length > 1 ? string.Join(" and ", shorelineManagementResults) : shorelineManagementResults.FirstOrDefault();
+            var shorelineManagementResults = matchingDistricts?.results?.Where(x => x.layerName is "shorelinemanagement").Select(x => x?.attributes?.DESIG).ToArray();
+            var shorelineManagement = shorelineManagementResults?.Length > 1 ? string.Join(" and ", shorelineManagementResults) : shorelineManagementResults?.FirstOrDefault();
 
-            var sensitiveAreaNoticeResults = matchingDistricts.results.Where(x => x.layerName is "sant").Select(x => x?.attributes?.RECORDING_).ToArray();
+            var sensitiveAreaNoticeResults = matchingDistricts?.results?.Where(x => x.layerName is "sant").Select(x => x?.attributes?.RECORDING_).ToArray();
             var sensitiveAreaNotices = new List<DistrictsReport.SensitiveAreaNotice>();
-            foreach (var notice in sensitiveAreaNoticeResults)
+            if (sensitiveAreaNoticeResults is not null && sensitiveAreaNoticeResults.Any())
             {
-                sensitiveAreaNotices.Add(new DistrictsReport.SensitiveAreaNotice
+                foreach (var notice in sensitiveAreaNoticeResults)
                 {
-                    RecordingId = notice,
-                    Link = $"{_configuration["RelatedServices:Instrument"]}{notice}",
-                });
+                    if (!string.IsNullOrWhiteSpace(notice))
+                    {
+                        sensitiveAreaNotices.Add(new DistrictsReport.SensitiveAreaNotice
+                        {
+                            RecordingId = notice,
+                            Link = $"{_configuration["RelatedServices:Instrument"]}{notice}",
+                        });
+                    }
+                }
             }
 
             return new DistrictsReport
@@ -444,9 +463,9 @@ namespace ParcelLookup.Pages
         /// <param name="tukwila"></param>
         /// <param name="pinQuery"></param>
         /// <returns></returns>
-        private async Task<DistrictsReport.ParcelTukwila?> GetTukwilaReportByParcelNumberAsync(string parcelNumber, string extent, DistrictsReport.ParcelJurisdiction? tukwila, MapServiceLayerQuery pinQuery)
+        public async Task<DistrictsReport.ParcelTukwila?> GetTukwilaReportByParcelNumberAsync(string parcelNumber, string extent, DistrictsReport.ParcelJurisdiction? tukwila, MapServiceLayerQuery? pinQuery)
         {
-            if (tukwila is not null)
+            if (tukwila is not null && pinQuery is not null && !string.IsNullOrWhiteSpace(parcelNumber) && !string.IsNullOrWhiteSpace(extent))
             {
                 // Magic
                 var tukwilaServicesUrl = "https://maps.tukwilawa.gov/arcgis/rest/services/iMap/DistrictsReport/MapServer/?f=pjson";
@@ -456,69 +475,69 @@ namespace ParcelLookup.Pages
                 var tukwilaMatchingDistrictsResponse = await tukwilaIdentifyQueryUrl.PostUrlEncodedAsync(new
                 {
                     geometryType = "esriGeometryPolygon",
-                    geometry = JsonSerializer.Serialize(pinQuery.features.FirstOrDefault()?.geometry),
+                    geometry = JsonSerializer.Serialize(pinQuery?.features?.FirstOrDefault()?.geometry),
                     mapExtent = extent,
                     tolerance = 0,
                     imageDisplay = "1024,768,96",
                     returnGeometry = false,
-                    sr = pinQuery.spatialReference.wkid,
+                    sr = pinQuery?.spatialReference?.wkid,
                     f = "json",
                     layers = "all"
                 });
                 var tukwilastringCheck = await tukwilaMatchingDistrictsResponse.GetStringAsync();
                 var tukwilaMatchingDistricts = await tukwilaMatchingDistrictsResponse.GetJsonAsync<DistrictsReportIdentify>();
 
-                var tukwilaAddressResults = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "AddressPoints").Select(x => x?.attributes?.ComboAddress).ToArray();
-                var tukwilaAddress = tukwilaAddressResults.Length > 1 ? string.Join(" and ", tukwilaAddressResults) : tukwilaAddressResults.FirstOrDefault();
+                var tukwilaAddressResults = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "AddressPoints").Select(x => x?.attributes?.ComboAddress).ToArray();
+                var tukwilaAddress = tukwilaAddressResults?.Length > 1 ? string.Join(" and ", tukwilaAddressResults) : tukwilaAddressResults?.FirstOrDefault();
 
-                var tukwilaFishResults = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "FishAndWildlifeHabitat").Select(x => x?.attributes?.HabitatType).ToArray();
-                var tukwilaFish = tukwilaFishResults.Length > 1 ? string.Join(" and ", tukwilaFishResults) : tukwilaFishResults.FirstOrDefault();
+                var tukwilaFishResults = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "FishAndWildlifeHabitat").Select(x => x?.attributes?.HabitatType).ToArray();
+                var tukwilaFish = tukwilaFishResults?.Length > 1 ? string.Join(" and ", tukwilaFishResults) : tukwilaFishResults?.FirstOrDefault();
 
-                var tukwilaWetlandsResult = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "Wetlands").Select(x => x?.attributes?.WetlandClass).ToArray();
-                var tukwilaWetlands = tukwilaWetlandsResult.Length > 1 ? string.Join(" and ", tukwilaWetlandsResult) : tukwilaWetlandsResult.FirstOrDefault();
+                var tukwilaWetlandsResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Wetlands").Select(x => x?.attributes?.WetlandClass).ToArray();
+                var tukwilaWetlands = tukwilaWetlandsResult?.Length > 1 ? string.Join(" and ", tukwilaWetlandsResult) : tukwilaWetlandsResult?.FirstOrDefault();
 
-                var tukwilaWetlandsBufferResult = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "WetlandsBuffer").Select(x => x?.attributes?.BufferWidth).ToArray();
-                var tukwilaWetlandsBuffer = tukwilaWetlandsBufferResult.Length > 1 ? string.Join(" and ", tukwilaWetlandsBufferResult) : tukwilaWetlandsBufferResult.FirstOrDefault();
+                var tukwilaWetlandsBufferResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "WetlandsBuffer").Select(x => x?.attributes?.BufferWidth).ToArray();
+                var tukwilaWetlandsBuffer = tukwilaWetlandsBufferResult?.Length > 1 ? string.Join(" and ", tukwilaWetlandsBufferResult) : tukwilaWetlandsBufferResult?.FirstOrDefault();
 
-                var tukwilaShorelineResult = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "ShorelineJurisdiction").Select(x => x?.attributes?.ShoreEnvir).ToArray();
-                var tukwilaShoreline = tukwilaShorelineResult.Length > 1 ? string.Join(" and ", tukwilaShorelineResult) : tukwilaShorelineResult.FirstOrDefault();
+                var tukwilaShorelineResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "ShorelineJurisdiction").Select(x => x?.attributes?.ShoreEnvir).ToArray();
+                var tukwilaShoreline = tukwilaShorelineResult?.Length > 1 ? string.Join(" and ", tukwilaShorelineResult) : tukwilaShorelineResult?.FirstOrDefault();
 
-                var tukwilaLandslide = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "Landslide").FirstOrDefault();
-                var tukwilaSeismic = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "SeismicHazardAreas").FirstOrDefault();
-                var tukwilaMinehazard = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "MineHazardAreas").FirstOrDefault();
+                var tukwilaLandslide = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Landslide").FirstOrDefault();
+                var tukwilaSeismic = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "SeismicHazardAreas").FirstOrDefault();
+                var tukwilaMinehazard = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "MineHazardAreas").FirstOrDefault();
 
-                var tukwilaStreamResult = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "Streams").Select(x => x?.attributes?.StreamName).ToArray();
-                var tukwilaStream = tukwilaStreamResult.Length > 1 ? string.Join(" and ", tukwilaStreamResult) : tukwilaStreamResult.FirstOrDefault();
+                var tukwilaStreamResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Streams").Select(x => x?.attributes?.StreamName).ToArray();
+                var tukwilaStream = tukwilaStreamResult?.Length > 1 ? string.Join(" and ", tukwilaStreamResult) : tukwilaStreamResult?.FirstOrDefault();
 
-                var tukwilaStreamBufferResult = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "StreamBuffers").Select(x => x?.attributes?.BufferWidth).ToArray();
-                var tukwilaStreamBuffer = tukwilaStreamBufferResult.Length > 1 ? string.Join(" and ", tukwilaStreamBufferResult) : tukwilaStreamBufferResult.FirstOrDefault();
+                var tukwilaStreamBufferResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "StreamBuffers").Select(x => x?.attributes?.BufferWidth).ToArray();
+                var tukwilaStreamBuffer = tukwilaStreamBufferResult?.Length > 1 ? string.Join(" and ", tukwilaStreamBufferResult) : tukwilaStreamBufferResult?.FirstOrDefault();
 
-                var tukwilaZoningResult = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "Zoning").Select(x => x?.attributes?.ZoningDescription).ToArray();
-                var tukwilaZoning = tukwilaStreamBufferResult.Length > 1 ? string.Join(" and ", tukwilaZoningResult) : tukwilaZoningResult.FirstOrDefault();
+                var tukwilaZoningResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Zoning").Select(x => x?.attributes?.ZoningDescription)?.ToArray();
+                var tukwilaZoning = tukwilaStreamBufferResult?.Length > 1 ? string.Join(" and ", tukwilaZoningResult ?? Array.Empty<string>()) : tukwilaZoningResult?.FirstOrDefault();
 
-                var tukwilaZoningOverlayResult = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "Zoning_Overlays").Select(x => x?.attributes?.Overlay).ToArray();
-                var tukwilaZoningOverlay = tukwilaZoningOverlayResult.Length > 1 ? string.Join(" and ", tukwilaZoningOverlayResult) : tukwilaZoningOverlayResult.FirstOrDefault();
+                var tukwilaZoningOverlayResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Zoning_Overlays").Select(x => x?.attributes?.Overlay).ToArray();
+                var tukwilaZoningOverlay = tukwilaZoningOverlayResult?.Length > 1 ? string.Join(" and ", tukwilaZoningOverlayResult) : tukwilaZoningOverlayResult?.FirstOrDefault();
 
-                var tukwilaCompPlanResult = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "CompPlan").Select(x => x?.attributes?.CompPlanDescription).ToArray();
-                var tukwilaCompPlan = tukwilaCompPlanResult.Length > 1 ? string.Join(" and ", tukwilaCompPlanResult) : tukwilaCompPlanResult.FirstOrDefault();
+                var tukwilaCompPlanResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "CompPlan").Select(x => x?.attributes?.CompPlanDescription).ToArray();
+                var tukwilaCompPlan = tukwilaCompPlanResult?.Length > 1 ? string.Join(" and ", tukwilaCompPlanResult) : tukwilaCompPlanResult?.FirstOrDefault();
 
-                var tukwilaWaterServiceResult = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "WaterService").Select(x => x?.attributes?.WaterService).ToArray();
-                var tukwilaWaterService = tukwilaWaterServiceResult.Length > 1 ? string.Join(" and ", tukwilaWaterServiceResult) : tukwilaWaterServiceResult.FirstOrDefault();
+                var tukwilaWaterServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "WaterService").Select(x => x?.attributes?.WaterService).ToArray();
+                var tukwilaWaterService = tukwilaWaterServiceResult?.Length > 1 ? string.Join(" and ", tukwilaWaterServiceResult) : tukwilaWaterServiceResult?.FirstOrDefault();
 
-                var tukwilaSewerServiceResult = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "SewerService").Select(x => x?.attributes?.SewerService).ToArray();
-                var tukwilaSewerService = tukwilaSewerServiceResult.Length > 1 ? string.Join(" and ", tukwilaSewerServiceResult) : tukwilaSewerServiceResult.FirstOrDefault();
+                var tukwilaSewerServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "SewerService").Select(x => x?.attributes?.SewerService).ToArray();
+                var tukwilaSewerService = tukwilaSewerServiceResult?.Length > 1 ? string.Join(" and ", tukwilaSewerServiceResult) : tukwilaSewerServiceResult?.FirstOrDefault();
 
-                var tukwilaStormServiceResult = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "StormService").Select(x => x?.attributes?.StormService).ToArray();
-                var tukwilaStormService = tukwilaStormServiceResult.Length > 1 ? string.Join(" and ", tukwilaStormServiceResult) : tukwilaStormServiceResult.FirstOrDefault();
+                var tukwilaStormServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "StormService").Select(x => x?.attributes?.StormService).ToArray();
+                var tukwilaStormService = tukwilaStormServiceResult?.Length > 1 ? string.Join(" and ", tukwilaStormServiceResult) : tukwilaStormServiceResult?.FirstOrDefault();
 
-                var tukwilaPowerServiceResult = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "PowerService").Select(x => x?.attributes?.PowerService).ToArray();
-                var tukwilaPowerService = tukwilaPowerServiceResult.Length > 1 ? string.Join(" and ", tukwilaPowerServiceResult) : tukwilaPowerServiceResult.FirstOrDefault();
+                var tukwilaPowerServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "PowerService").Select(x => x?.attributes?.PowerService).ToArray();
+                var tukwilaPowerService = tukwilaPowerServiceResult?.Length > 1 ? string.Join(" and ", tukwilaPowerServiceResult) : tukwilaPowerServiceResult?.FirstOrDefault();
 
-                var tukwilaPoliceServiceResult = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "PoliceService").Select(x => x?.attributes?.PoliceServ).ToArray();
-                var tukwilaPoliceService = tukwilaPoliceServiceResult.Length > 1 ? string.Join(" and ", tukwilaPoliceServiceResult) : tukwilaPoliceServiceResult.FirstOrDefault();
+                var tukwilaPoliceServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "PoliceService").Select(x => x?.attributes?.PoliceServ).ToArray();
+                var tukwilaPoliceService = tukwilaPoliceServiceResult?.Length > 1 ? string.Join(" and ", tukwilaPoliceServiceResult) : tukwilaPoliceServiceResult?.FirstOrDefault();
 
-                var tukwilaGarbageServiceResult = tukwilaMatchingDistricts.results.Where(x => x?.layerName is "GarbageService").Select(x => x?.attributes?.GarbageSer).ToArray();
-                var tukwilaGarbageService = tukwilaGarbageServiceResult.Length > 1 ? string.Join(" and ", tukwilaGarbageServiceResult) : tukwilaGarbageServiceResult.FirstOrDefault();
+                var tukwilaGarbageServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "GarbageService").Select(x => x?.attributes?.GarbageSer).ToArray();
+                var tukwilaGarbageService = tukwilaGarbageServiceResult?.Length > 1 ? string.Join(" and ", tukwilaGarbageServiceResult) : tukwilaGarbageServiceResult?.FirstOrDefault();
 
                 return new DistrictsReport.ParcelTukwila
                 {
@@ -556,7 +575,7 @@ namespace ParcelLookup.Pages
         /// <param name="schoolDistrictNumber"></param>
         /// <param name="configuration"></param>
         /// <returns></returns>
-        private static string GetSchoolDistrictLinkByNumber(string schoolDistrictNumber, IConfiguration configuration)
+        public static string GetSchoolDistrictLinkByNumber(string schoolDistrictNumber, IConfiguration configuration)
         {
             return schoolDistrictNumber switch
             {
@@ -590,7 +609,7 @@ namespace ParcelLookup.Pages
         /// <param name="watershed"></param>
         /// <param name="configuration"></param>
         /// <returns></returns>
-        private static string GetWatershedLinkByName(string watershed, IConfiguration configuration)
+        public static string GetWatershedLinkByName(string watershed, IConfiguration configuration)
         {
             return watershed switch
             {
@@ -610,7 +629,7 @@ namespace ParcelLookup.Pages
         /// <param name="wriaNumber"></param>
         /// <param name="configuration"></param>
         /// <returns></returns>
-        private static string GetWRIALinkByWRIANumber(string wriaNumber, IConfiguration configuration)
+        public static string GetWRIALinkByWRIANumber(string wriaNumber, IConfiguration configuration)
         {
             return wriaNumber switch
             {
@@ -622,7 +641,7 @@ namespace ParcelLookup.Pages
             };
         }
 
-        private static string GetLandUseCodeByShortCode(string landUseCode)
+        public static string GetLandUseCodeByShortCode(string landUseCode)
         {
             return landUseCode switch
             {
@@ -656,7 +675,7 @@ namespace ParcelLookup.Pages
         /// <param name="jurisdiction"></param>
         /// <param name="configuration"></param>
         /// <returns></returns>
-        private static string GetJuristictionLinkByParcelNumber(string parcelNumber, string jurisdiction, IConfiguration configuration)
+        public static string GetJuristictionLinkByParcelNumber(string parcelNumber, string jurisdiction, IConfiguration configuration)
         {
             return jurisdiction switch
             {
@@ -673,7 +692,7 @@ namespace ParcelLookup.Pages
         /// <param name="pinQuery"></param>
         /// <param name="wkid"></param>
         /// <returns></returns>
-        private Geometry? BufferParcel(MapServiceLayerQuery pinQuery, int wkid)
+        public Geometry? BufferParcel(MapServiceLayerQuery pinQuery, int wkid)
         {
             var geometryFactory = NetTopologySuite.NtsGeometryServices.Instance.CreateGeometryFactory(wkid);
 
