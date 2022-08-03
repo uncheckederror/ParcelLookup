@@ -50,7 +50,33 @@ namespace ParcelLookup.Pages
                         // Major only
                         12 => digitsFromPIN[..10],
                         10 => digitsFromPIN[..10],
+                        _ => string.Empty
                     };
+                }
+                else
+                {
+                    Message = "Please enter a parcel number.";
+                }
+            }
+
+            // Treat it as an address.
+            if (!string.IsNullOrWhiteSpace(PIN) && string.IsNullOrWhiteSpace(ParcelNumber))
+            {
+                try
+                {
+                    var response = await $"https://www5.kingcounty.gov/kcgislookup/api/address/{PIN.Trim()}".GetJsonAsync<AddressLookup[]>();
+                    if (response is not null && response.Any())
+                    {
+                        ParcelNumber = response.FirstOrDefault()?.PIN ?? string.Empty;
+                    }
+                    else
+                    {
+                        Message = $"Could not match {PIN} to a parcel in King County. Please enter a parcel number or address.";
+                    }
+                }
+                catch
+                {
+                    Message = $"Could not match {PIN} to a parcel in King County. Please enter a parcel number or address.";
                 }
             }
 
