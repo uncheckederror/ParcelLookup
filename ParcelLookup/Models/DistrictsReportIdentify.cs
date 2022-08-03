@@ -1,4 +1,8 @@
-﻿namespace ParcelLookup.Models
+﻿using Newtonsoft.Json;
+using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
+
+namespace ParcelLookup.Models
 {
     public class DistrictsReportIdentify
     {
@@ -18,8 +22,11 @@
             public string MAJOR { get; set; }
             public string MINOR { get; set; }
             public string PIN { get; set; }
-            public string Shape { get; set; }
+            [JsonProperty("Shape.STArea()")]
+            [JsonPropertyName("Shape.STArea()")]
             public string ShapeSTArea { get; set; }
+            [JsonProperty("Shape.STLength()")]
+            [JsonPropertyName("Shape.STLength()")]
             public string ShapeSTLength { get; set; }
             public string ObjectID { get; set; }
             public string shape { get; set; }
@@ -88,8 +95,6 @@
             public string PresentUseDescription { get; set; }
             public string JURIS { get; set; }
             public string CITYNAME { get; set; }
-            public string SHAPESTArea { get; set; }
-            public string SHAPESTLength { get; set; }
             public string ZIP { get; set; }
             public string ZIPCODE { get; set; }
             public string ZIP_TYPE { get; set; }
@@ -119,8 +124,6 @@
             public string UGASIDE { get; set; }
             public string EDITDATE { get; set; }
             public string USERID { get; set; }
-            public string SHAPEarea { get; set; }
-            public string SHAPElen { get; set; }
             public string AREANAME { get; set; }
             public string DISPLAYCLA { get; set; }
             public string PRODUCTARE { get; set; }
