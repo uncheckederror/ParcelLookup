@@ -1,4 +1,7 @@
-﻿namespace ParcelLookup.Models
+﻿using Newtonsoft.Json;
+using System.Text.Json.Serialization;
+
+namespace ParcelLookup.Models
 {
     public class MapServiceLayerQuery
     {
@@ -169,8 +172,12 @@
             public float KCA_ACRES { get; set; }
             public int PREUSE_CODE { get; set; }
             public string PREUSE_DESC { get; set; }
-            public float ShapeSTArea { get; set; }
-            public float ShapeSTLength { get; set; }
+            [JsonProperty("Shape.STArea()")]
+            [JsonPropertyName("Shape.STArea()")]
+            public string ShapeSTArea { get; set; }
+            [JsonProperty("Shape.STLength()")]
+            [JsonPropertyName("Shape.STLength()")]
+            public string ShapeSTLength { get; set; }
         }
         public class Geometry
         {

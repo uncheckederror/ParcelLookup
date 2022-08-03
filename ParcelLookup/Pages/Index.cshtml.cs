@@ -261,9 +261,10 @@ namespace ParcelLookup.Pages
             var legislativeDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "legdst").Select(x => x?.attributes?.LEGDST).ToArray();
             var legislativeDistrict = legislativeDistrictResults?.Length > 1 ? string.Join(" and ", legislativeDistrictResults) : legislativeDistrictResults?.FirstOrDefault();
 
-            var schoolDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "schdst").Select(x => $"{x?.attributes?.NAME} {x?.attributes?.SCHDST}").ToArray();
-            var schoolDistrict = schoolDistrictResults?.Length > 1 ? string.Join(" and ", schoolDistrictResults) : schoolDistrictResults?.FirstOrDefault();
-            var schoolDistrictLink = GetSchoolDistrictLinkByNumber(matchingDistricts?.results?.Where(x => x.layerName is "schdst").FirstOrDefault()?.attributes?.SCHDST ?? string.Empty, _configuration);
+            var schoolDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "schdst").ToArray();
+            var schoolDistrictPrimary = schoolDistrictResults?.Length > 1 ? GetSchoolDistrictByArea(schoolDistrictResults, pinQuery) : schoolDistrictResults?.FirstOrDefault();
+            var schoolDistrict = $"{schoolDistrictPrimary?.attributes?.NAME} {schoolDistrictPrimary?.attributes?.SCHDST}";
+            var schoolDistrictLink = GetSchoolDistrictLinkByNumber(schoolDistrictPrimary?.attributes?.SCHDST ?? string.Empty, _configuration);
 
             var schoolDistrictBoardResults = matchingDistricts?.results?.Where(x => x.layerName is "dirdst").Select(x => x?.attributes?.NAME).ToArray();
             var schoolDistrictBoard = schoolDistrictBoardResults?.Length > 1 ? string.Join(" and ", schoolDistrictBoardResults) : schoolDistrictBoardResults?.FirstOrDefault();
@@ -479,6 +480,42 @@ namespace ParcelLookup.Pages
                 ParcelViewerLink = $"{_configuration["RelatedServices:ParcelViewer"]}{parcel?.Parcel}",
                 SensitiveAreaNotices = sensitiveAreaNotices.ToArray(),
             };
+        }
+
+        /// <summary>
+        /// Find the primary school district for the parcel based on the area of the parcel overlayed by each district.
+        /// </summary>
+        /// <param name="schoolDistrictResults"></param>
+        /// <param name="pinQuery"></param>
+        /// <returns></returns>
+        public DistrictsReportIdentify.Result GetSchoolDistrictByArea(DistrictsReportIdentify.Result[] schoolDistrictResults, MapServiceLayerQuery pinQuery)
+        {
+            var checkParse = double.TryParse(pinQuery?.features?.FirstOrDefault()?.attributes?.ShapeSTArea, out var featureArea);
+            var highestOverlayPercent = 0.0;
+            DistrictsReportIdentify.Result? highestDistrict = null;
+
+            if (checkParse && schoolDistrictResults is not null && schoolDistrictResults.Any())
+            {
+                foreach (var school in schoolDistrictResults)
+                {
+                    checkParse = double.TryParse(school?.attributes?.ShapeSTArea, out var overlayArea);
+                    if (checkParse && school is not null)
+                    {
+                        var percentOverlay = (featureArea / overlayArea) * 100;
+                        if (highestOverlayPercent < percentOverlay)
+                        {
+                            highestOverlayPercent = percentOverlay;
+                            highestDistrict = school;
+                        }
+                    }
+                }
+
+                return highestDistrict;
+            }
+            else
+            {
+                return schoolDistrictResults?.FirstOrDefault();
+            }
         }
 
         /// <summary>
