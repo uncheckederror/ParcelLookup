@@ -115,8 +115,8 @@ namespace ParcelLookup.Pages
             var districts = await districtServicesUrl.GetJsonAsync<MapServiceDescription>();
 
             // Reuse the extent from the map service definition because we don't want to calculate it or query for it.
-            var extent = $"{districts.initialExtent.xmax},{districts.initialExtent.ymax},{districts.initialExtent.xmin},{districts.initialExtent.ymin}";
-            var parcelAddressAreaLayer = districts.layers.FirstOrDefault(x => x.name == "parcel_address_area")?.id;
+            var extent = $"{districts?.initialExtent?.xmax},{districts?.initialExtent?.ymax},{districts?.initialExtent?.xmin},{districts?.initialExtent?.ymin}";
+            var parcelAddressAreaLayer = districts?.layers?.FirstOrDefault(x => x.name == "parcel_address_area")?.id;
             var layerServiceUrl = $"{_configuration["KingCountyAPIs:DistrictReport"]}{parcelAddressAreaLayer}/query";
             var pinQueryResponse = await layerServiceUrl
                                         .PostUrlEncodedAsync(new
@@ -126,22 +126,21 @@ namespace ParcelLookup.Pages
                                             where = $"PIN='{parcel?.Parcel}'",
                                             f = "json"
                                         });
-            var lol = await pinQueryResponse.GetStringAsync();
             var pinQuery = await pinQueryResponse.GetJsonAsync<MapServiceLayerQuery>();
 
             // Apply the buffer to the geometry of our parcel number query result.
             if (pinQuery.features is not null && pinQuery.features.Any() && BufferDistance is not 0)
             {
-                var buffered = BufferParcel(pinQuery, districts.spatialReference.wkid);
+                var buffered = BufferParcel(pinQuery, districts!.spatialReference!.wkid);
 
-                var existingRing = pinQuery.features.FirstOrDefault()?.geometry.rings;
+                var existingRing = pinQuery.features.FirstOrDefault()?.geometry?.rings;
                 var bufferedCoordinates = buffered!.Coordinates;
                 var ringFromCoordinates = new List<float[]>();
                 foreach (var coord in bufferedCoordinates)
                 {
                     ringFromCoordinates.Add(new float[] { Convert.ToSingle(coord.X), Convert.ToSingle(coord.Y) });
                 }
-                pinQuery.features.FirstOrDefault()!.geometry.rings = new float[][][] { ringFromCoordinates.ToArray() };
+                pinQuery.features.FirstOrDefault()!.geometry!.rings = new float[][][] { ringFromCoordinates.ToArray() };
             }
 
             // Run the identify query based on the buffered parcel geometry.
@@ -200,7 +199,7 @@ namespace ParcelLookup.Pages
             {
                 foreach (var layer in matchingDistricts.results)
                 {
-                    layer.layerName = layer.layerName.ToLower(System.Globalization.CultureInfo.CurrentCulture);
+                    layer.layerName = layer?.layerName?.ToLower(System.Globalization.CultureInfo.CurrentCulture);
                 }
             }
 
@@ -237,14 +236,14 @@ namespace ParcelLookup.Pages
 
             var watershedResults = matchingDistricts?.results?.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.WTRSHD_NAME).ToArray();
             var watershed = watershedResults?.Length > 1 ? string.Join(" and ", watershedResults) : watershedResults?.FirstOrDefault();
-            var watershedLink = GetWatershedLinkByName(watershed, _configuration);
+            var watershedLink = GetWatershedLinkByName(watershed ?? string.Empty, _configuration);
 
             var wriaNameResults = matchingDistricts?.results?.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.WRIA_NAME).ToArray();
             var wriaName = wriaNameResults?.Length > 1 ? string.Join(" and ", wriaNameResults) : wriaNameResults?.FirstOrDefault();
 
             var wriaNumberResults = matchingDistricts?.results?.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.WRIA_NO).ToArray();
             var wriaNumber = wriaNumberResults?.Length > 1 ? string.Join(" and ", wriaNumberResults) : wriaNumberResults?.FirstOrDefault();
-            var wriaLink = GetWRIALinkByWRIANumber(wriaNumber, _configuration);
+            var wriaLink = GetWRIALinkByWRIANumber(wriaNumber ?? string.Empty, _configuration);
 
             var votingDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "votdst").Select(x => x?.attributes?.NAME).ToArray();
             var votingDistrict = votingDistrictResults?.Length > 1 ? string.Join(" and ", votingDistrictResults) : votingDistrictResults?.FirstOrDefault();
@@ -262,7 +261,7 @@ namespace ParcelLookup.Pages
             var legislativeDistrict = legislativeDistrictResults?.Length > 1 ? string.Join(" and ", legislativeDistrictResults) : legislativeDistrictResults?.FirstOrDefault();
 
             var schoolDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "schdst").ToArray();
-            var schoolDistrictPrimary = schoolDistrictResults?.Length > 1 ? GetSchoolDistrictByArea(schoolDistrictResults, pinQuery) : schoolDistrictResults?.FirstOrDefault();
+            var schoolDistrictPrimary = schoolDistrictResults?.Length > 1 ? GetSchoolDistrictByArea(schoolDistrictResults, pinQuery!) : schoolDistrictResults?.FirstOrDefault();
             var schoolDistrict = $"{schoolDistrictPrimary?.attributes?.NAME} {schoolDistrictPrimary?.attributes?.SCHDST}";
             var schoolDistrictLink = GetSchoolDistrictLinkByNumber(schoolDistrictPrimary?.attributes?.SCHDST ?? string.Empty, _configuration);
 
@@ -331,7 +330,7 @@ namespace ParcelLookup.Pages
                 }
             }
 
-            var compPlanResults = matchingDistricts?.results?.Where(x => x.layerName is "complu").Select(x => GetLandUseCodeByShortCode(x?.attributes?.CPLU)).ToArray();
+            var compPlanResults = matchingDistricts?.results?.Where(x => x.layerName is "complu").Select(x => GetLandUseCodeByShortCode(x?.attributes?.CPLU ?? string.Empty)).ToArray();
             var compPlan = compPlanResults?.Length > 1 ? string.Join(" and ", compPlanResults) : compPlanResults?.FirstOrDefault();
 
             var ugaResults = matchingDistricts?.results?.Where(x => x.layerName is "urban_growth").Select(x => x?.attributes?.UGASIDE is "u" ? "Urban" : "Rural").ToArray();
@@ -488,7 +487,7 @@ namespace ParcelLookup.Pages
         /// <param name="schoolDistrictResults"></param>
         /// <param name="pinQuery"></param>
         /// <returns></returns>
-        public DistrictsReportIdentify.Result GetSchoolDistrictByArea(DistrictsReportIdentify.Result[] schoolDistrictResults, MapServiceLayerQuery pinQuery)
+        public DistrictsReportIdentify.Result? GetSchoolDistrictByArea(DistrictsReportIdentify.Result[] schoolDistrictResults, MapServiceLayerQuery pinQuery)
         {
             var checkParse = double.TryParse(pinQuery?.features?.FirstOrDefault()?.attributes?.ShapeSTArea, out var featureArea);
             var highestOverlayPercent = 0.0;
@@ -761,82 +760,96 @@ namespace ParcelLookup.Pages
 
             var bufferedGeometries = new List<Geometry>();
 
-            foreach (var feature in pinQuery.features)
+            if (pinQuery?.features is not null && pinQuery.features.Any())
             {
-                if (feature.geometry is not null)
+                foreach (var feature in pinQuery.features)
                 {
-                    var polygons = new List<Polygon>();
-                    Polygon? polygon = null;
-
-                    foreach (var ring in feature.geometry.rings)
+                    if (feature.geometry is not null)
                     {
-                        var coords = new List<Coordinate>();
+                        var polygons = new List<Polygon>();
+                        Polygon? polygon;
 
-                        foreach (var coord in ring)
+                        if (feature?.geometry?.rings is not null && feature.geometry.rings.Any())
                         {
-                            coords.Add(new Coordinate(Convert.ToDouble(coord[0]), Convert.ToDouble(coord[1])));
-                        }
-
-                        if (coords.Count > 1)
-                        {
-                            var start = coords.FirstOrDefault();
-                            var end = coords.LastOrDefault();
-                            if (start is not null && end is not null && start.X != end.X && start.Y != end.Y)
+                            foreach (var ring in feature.geometry.rings)
                             {
-                                coords.Add(start);
+                                var coords = new List<Coordinate>();
+
+                                foreach (var coord in ring)
+                                {
+                                    coords.Add(new Coordinate(Convert.ToDouble(coord[0]), Convert.ToDouble(coord[1])));
+                                }
+
+                                if (coords.Count > 1)
+                                {
+                                    var start = coords.FirstOrDefault();
+                                    var end = coords.LastOrDefault();
+                                    if (start is not null && end is not null && start.X != end.X && start.Y != end.Y)
+                                    {
+                                        coords.Add(start);
+                                    }
+                                }
+
+                                var polyFromCoordinates = geometryFactory.CreatePolygon(coords.ToArray());
+
+                                // If we've created a valid polygon add it to the list; Otherwise fix it, and then add it to the list.
+                                if (polyFromCoordinates is not null && polyFromCoordinates.IsValid)
+                                {
+                                    polygons.Add(polyFromCoordinates);
+                                }
+                                else
+                                {
+                                    // Magic to fix invalid polygons. Check the NetTopologySuite for an explaintion.
+                                    polygons.Add(geometryFactory.CreatePolygon(NetTopologySuite.Geometries.Utilities.GeometryFixer.Fix(polyFromCoordinates).Coordinates));
+                                }
                             }
-                        }
 
-                        var polyFromCoordinates = geometryFactory.CreatePolygon(coords.ToArray());
+                            if (polygons.Count > 1)
+                            {
+                                var union = polygons[0].Union(polygons[1]);
 
-                        // If we've created a valid polygon add it to the list; Otherwise fix it, and then add it to the list.
-                        if (polyFromCoordinates is not null && polyFromCoordinates.IsValid)
-                        {
-                            polygons.Add(polyFromCoordinates);
+                                if (polygons.Count > 2)
+                                {
+                                    foreach (var poly in polygons.Skip(2).ToArray())
+                                    {
+                                        union = union.Union(poly);
+                                    }
+                                }
+
+                                var unioned = geometryFactory.CreatePolygon(union.Coordinates);
+
+                                // Magic to fix invalid polygons. Check the NetTopologySuite for an explaintion.
+                                if (unioned.IsValid)
+                                {
+                                    polygon = geometryFactory.CreatePolygon(union.Coordinates);
+                                }
+                                else
+                                {
+                                    polygon = geometryFactory.CreatePolygon(NetTopologySuite.Geometries.Utilities.GeometryFixer.Fix(unioned).Coordinates);
+                                }
+                            }
+                            else
+                            {
+                                polygon = polygons.FirstOrDefault();
+                            }
+
+                            var buffered = polygon?.Buffer(BufferDistance);
+
+                            if (buffered is not null && buffered.IsValid)
+                            {
+                                bufferedGeometries.Add(buffered);
+                            }
                         }
                         else
                         {
-                            // Magic to fix invalid polygons. Check the NetTopologySuite for an explaintion.
-                            polygons.Add(geometryFactory.CreatePolygon(NetTopologySuite.Geometries.Utilities.GeometryFixer.Fix(polyFromCoordinates).Coordinates));
+                            throw new Exception($"The geometry rings are null or empty: {feature?.geometry?.rings} for {pinQuery}");
                         }
-                    }
-
-                    if (polygons.Count > 1)
-                    {
-                        var union = polygons[0].Union(polygons[1]);
-
-                        if (polygons.Count > 2)
-                        {
-                            foreach (var poly in polygons.Skip(2).ToArray())
-                            {
-                                union = union.Union(poly);
-                            }
-                        }
-
-                        var unioned = geometryFactory.CreatePolygon(union.Coordinates);
-
-                        // Magic to fix invalid polygons. Check the NetTopologySuite for an explaintion.
-                        if (unioned.IsValid)
-                        {
-                            polygon = geometryFactory.CreatePolygon(union.Coordinates);
-                        }
-                        else
-                        {
-                            polygon = geometryFactory.CreatePolygon(NetTopologySuite.Geometries.Utilities.GeometryFixer.Fix(unioned).Coordinates);
-                        }
-                    }
-                    else
-                    {
-                        polygon = polygons.FirstOrDefault();
-                    }
-
-                    var buffered = polygon?.Buffer(BufferDistance);
-
-                    if (buffered is not null && buffered.IsValid)
-                    {
-                        bufferedGeometries.Add(buffered);
                     }
                 }
+            }
+            else
+            {
+                throw new Exception($"The pinQuery is null or has no features: {pinQuery}");
             }
 
             if (bufferedGeometries.Count > 1)
