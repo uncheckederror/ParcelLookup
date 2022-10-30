@@ -71,6 +71,18 @@ namespace Test
         }
 
         [Fact]
+        public void WRIAConversion()
+        {
+            var empty = ParcelLookup.Pages.DistrictsReportModel.GetWRIALinkByWRIANumber(string.Empty, _configuration);
+            Assert.NotNull(empty);
+            Assert.Equal(string.Empty, empty);
+
+            var bad = ParcelLookup.Pages.DistrictsReportModel.GetWRIALinkByWRIANumber("FunkyTown", _configuration);
+            Assert.NotNull(bad);
+            Assert.Equal(string.Empty, bad);
+        }
+
+        [Fact]
         public void JurisdictionConversion()
         {
             var empty = ParcelLookup.Pages.DistrictsReportModel.GetJuristictionLinkByParcelNumber(string.Empty, string.Empty, _configuration);
