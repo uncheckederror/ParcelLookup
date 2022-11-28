@@ -1,5 +1,6 @@
 using Flurl.Http;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.OutputCaching;
 using NetTopologySuite.Geometries;
 using ParcelLookup.Models;
 using System.Text.Json;
@@ -30,6 +31,7 @@ namespace ParcelLookup.Pages
         /// <param name="PIN">A valid King County Parcel Number (PIN)</param>
         /// <returns>An HTML formatted Districts Report.</returns>
         /// <exception cref="Exception"></exception>
+        [OutputCache(Duration = 30, VaryByQueryKeys = new string[] { "PIN" })]
         public async Task OnGetAsync(string PIN)
         {
             if (!string.IsNullOrWhiteSpace(PIN))
