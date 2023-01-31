@@ -9,7 +9,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="Flurl.Http" Version="3.2.4" />
-		<PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" Version="0.17.0" />
+		<PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" Version="0.18.0" />
 		<PackageReference Include="NetTopologySuite" Version="2.5.0" />
 	</ItemGroup>
 
