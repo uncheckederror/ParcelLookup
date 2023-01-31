@@ -1,6 +1,11 @@
 ﻿@page
 @model ParcelLookup.Pages.DistrictsReportModel
 @using System.Text.Json
+
+@{
+    ViewData["Title"] = Model?.ParcelInfo?.Parcel ?? "Search Properties";
+}
+
 <script type="text/javascript">
     function handleSearchQuery(textBox) {
         const routeStart = 'https://gismaps.kingcounty.gov/arcgis/rest/services/Property/KingCo_Parcels/MapServer/0/query?where=PIN+like+%27';
