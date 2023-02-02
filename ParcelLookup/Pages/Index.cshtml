@@ -12,14 +12,14 @@
         const routeEnd = '%25%27&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=PIN&returnGeometry=false&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&havingClause=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=10&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=pjson';
         fetch(`${routeStart}${textBox.value}${routeEnd}`)
             .then(
-                function(response) {
+                function (response) {
                     if (response.status !== 200) {
                         console.log('Looks like there was a problem. Status Code: ' +
                             response.status);
                         return;
                     }
                     // Examine the text in the response
-                    response.json().then(function(data) {
+                    response.json().then(function (data) {
                         console.log(data);
                         var options = '';
                         for (var i = 0; i < data.features.length; i++) {
@@ -39,7 +39,7 @@
                     });
                 }
             )
-            .catch(function(err) {
+            .catch(function (err) {
                 console.log('Fetch Error :-S', err);
             });
     }
@@ -73,8 +73,11 @@
                         @Model?.Message
                     </div>
                 }
+                @{
+                    string parcelNumber = Model?.ParcelInfo?.Parcel ?? Model?.ParcelNumber ?? string.Empty;
+                }
                 <form class="search align-middle d-flex flex-fill my-md-auto" asp-page="./DistrictsReport" method="get" id="searchForm">
-                    <input id="searchInput" aria-describedby="searchByPin" type="search" name="PIN" size="1" class="flex-fill form-control" placeholder="Enter Parcel Number" aria-label="Search" value="@Model?.ParcelInfo?.Parcel" onchange="handleSearchQuery(this)" autocomplete="off" oninput="onInput(this)">
+                    <input id="searchInput" aria-describedby="searchByPin" type="search" name="PIN" size="1" class="flex-fill form-control" placeholder="Enter Parcel Number" aria-label="Search" value="@parcelNumber" onchange="handleSearchQuery(this)" autocomplete="off" oninput="onInput(this)">
                     <button class="btn flex-fill" type="submit" aria-expanded="false" aria-label="Search">
                         <span class="material-icons">search</span>
                     </button>
@@ -834,6 +837,32 @@ else
                                 <div class="btn-group">
                                     <a class="btn btn-primary-ghost-white" href="https://www5.kingcounty.gov/kcgisreports/dd_report.aspx?PIN=3876311580" target="_blank">Old</a>
                                     <a class="btn btn-primary" href="?PIN=3876311580">New</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="index-card">
+                        <a href="#">
+                            <div class="card-header"><p>Waterbody</p></div>
+                        </a>
+                        <div class="card-body">
+                            <div class="rich-text">
+                                <div class="btn-group">
+                                    <a class="btn btn-primary-ghost-white" href="https://www5.kingcounty.gov/kcgisreports/dd_report.aspx?PIN=302504HYDR" target="_blank">Old</a>
+                                    <a class="btn btn-primary" href="?PIN=302504HYDR">New</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="index-card">
+                        <a href="#">
+                            <div class="card-header"><p>Vashon Island</p></div>
+                        </a>
+                        <div class="card-body">
+                            <div class="rich-text">
+                                <div class="btn-group">
+                                    <a class="btn btn-primary-ghost-white" href="https://www5.kingcounty.gov/kcgisreports/dd_report.aspx?PIN=0822039083" target="_blank">Old</a>
+                                    <a class="btn btn-primary" href="?PIN=0822039083">New</a>
                                 </div>
                             </div>
                         </div>

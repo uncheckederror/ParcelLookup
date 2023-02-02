@@ -156,10 +156,17 @@ namespace ParcelLookup.Models
             public string? UniqueName { get; set; }
             public string? TOWN_NAME { get; set; }
             public string? STATUS { get; set; }
+            public string? TSHED_STAT { get; set; }
             public string? SHEDNAME { get; set; }
             public string? CAT_CODE { get; set; }
+            [JsonProperty("_TYPE_")]
+            [JsonPropertyName("_TYPE_")]
             public string? TYPE_ { get; set; }
+            [JsonProperty("_CURRENCY_")]
+            [JsonPropertyName("_CURRENCY_")]
             public string? CURRENCY_ { get; set; }
+            [JsonProperty("_SOURCE_")]
+            [JsonPropertyName("_SOURCE_")]
             public string? SOURCE_ { get; set; }
             public string? DESIG { get; set; }
             public string? RECORDING_ { get; set; }

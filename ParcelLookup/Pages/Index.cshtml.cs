@@ -9,7 +9,7 @@ namespace ParcelLookup.Pages
 {
     public class DistrictsReportModel : PageModel
     {
-        private string ParcelNumber { get; set; } = string.Empty;
+        public string ParcelNumber { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public ParcelInfo? ParcelInfo { get; set; } = null;
         public DistrictsReport? Report { get; set; } = null;
@@ -54,6 +54,19 @@ namespace ParcelLookup.Pages
                         10 => digitsFromPIN[..10],
                         _ => string.Empty
                     };
+
+                    if (digitsFromPIN.Length is 6 && PIN.Length is 10)
+                    {
+                        var specialMinor = PIN[6..];
+                        Message = specialMinor switch
+                        {
+                            "HYDR" => $"This parcel number {PIN} ends with HYDR, which represents a water body within the plat.",
+                            "UNKN" => $"This parcel number {PIN} ends with UNKN, which represents a parcel for which ownership is unknown or undetermined.",
+                            "ROAD" => $"This parcel number {PIN} ends with ROAD, which represents a road right-of-way within the plat.",
+                            "PUBL" => $"This parcel number {PIN} ends with PUBL, which represents public space within the plat.",
+                            _ => $"Could not match {PIN} to a parcel in King County. Please enter a parcel number or address.",
+                        };
+                    }
                 }
                 else
                 {
@@ -62,7 +75,7 @@ namespace ParcelLookup.Pages
             }
 
             // Treat it as an address.
-            if (!string.IsNullOrWhiteSpace(PIN) && string.IsNullOrWhiteSpace(ParcelNumber))
+            if (!string.IsNullOrWhiteSpace(PIN) && string.IsNullOrWhiteSpace(ParcelNumber) && Message is null)
             {
                 try
                 {
@@ -103,6 +116,15 @@ namespace ParcelLookup.Pages
             }
 
             // If the PIN cannot be parsed the page defaults back to the empty search bar and example parcels.
+            if (string.IsNullOrWhiteSpace(Message) && Report is null)
+            {
+                Message = $"Could not match {PIN} to a parcel in King County. Please enter a parcel number or address.";
+                ParcelNumber = PIN;
+            }
+            else if (Report is null)
+            {
+                ParcelNumber = PIN;
+            }
         }
 
         /// <summary>
@@ -319,7 +341,7 @@ namespace ParcelLookup.Pages
                 }
             }
 
-            var zoning = zones.Count > 1 ? string.Join(" and ", zones) : zones.FirstOrDefault();
+            var zoning = zones.Count > 1 ? string.Join(" and ", zones.Distinct()) : zones.FirstOrDefault();
 
             // Handle development conditions
             var conditionResults = matchingDistricts?.results?.Where(x => x.layerName is "development_condition").ToArray();
@@ -360,7 +382,7 @@ namespace ParcelLookup.Pages
             var waterServiceAreaResults = matchingDistricts?.results?.Where(x => x.layerName is "wtr_serv").Select(x => x?.attributes?.NAME).ToArray();
             var waterServiceArea = waterServiceAreaResults?.Length > 1 ? string.Join(" and ", waterServiceAreaResults) : waterServiceAreaResults?.FirstOrDefault();
 
-            var travelshedResults = matchingDistricts?.results?.Where(x => x.layerName is "travelshed").Select(x => $"{x?.attributes?.STATUS} - {x?.attributes?.SHEDNAME} Travelshed").ToArray();
+            var travelshedResults = matchingDistricts?.results?.Where(x => x.layerName is "travelshed").Select(x => $"{x?.attributes?.TSHED_STAT} - {x?.attributes?.SHEDNAME} Travelshed").ToArray();
             var travelshed = travelshedResults?.Length > 1 ? string.Join(" and ", travelshedResults) : travelshedResults?.FirstOrDefault();
 
             var forestProductionDistrict = matchingDistricts?.results?.Where(x => x.layerName is "forpddst").FirstOrDefault();
@@ -383,7 +405,7 @@ namespace ParcelLookup.Pages
                     var type = wetland?.attributes?.TYPE_ ?? "Not Designated";
                     var currency = wetland?.attributes?.CURRENCY_;
                     var source = wetland?.attributes?.SOURCE_;
-                    wetlands.Add($"Rating = {type} Currency = {type} Source = {type}");
+                    wetlands.Add($"Rating = {type} Currency = {currency} Source = {source}");
                 }
             }
 
@@ -447,7 +469,7 @@ namespace ParcelLookup.Pages
                 HospitalDistrict = hospitalDistrict ?? "N/A",
                 RuralLibraryDistrict = libraryDistrict ?? "N/A",
                 TribalLand = tribalLand is not null ? "Yes" : "No",
-                Zoning = zoning ?? jurisdictions.FirstOrDefault()?.Name ?? "N/A",
+                Zoning = zoning ?? jurisdictions?.FirstOrDefault()?.Name ?? "N/A",
                 DevelopmentConditions = conditions.ToArray(),
                 CompPlanLandUseDesignation = compPlan ?? "N/A",
                 UrbanGrowthArea = uga ?? string.Empty,
@@ -769,7 +791,6 @@ namespace ParcelLookup.Pages
                     if (feature.geometry is not null)
                     {
                         var polygons = new List<Polygon>();
-                        Polygon? polygon;
 
                         if (feature?.geometry?.rings is not null && feature.geometry.rings.Any())
                         {
@@ -818,28 +839,26 @@ namespace ParcelLookup.Pages
                                     }
                                 }
 
-                                var unioned = geometryFactory.CreatePolygon(union.Coordinates);
-
                                 // Magic to fix invalid polygons. Check the NetTopologySuite for an explaintion.
-                                if (unioned.IsValid)
+                                var polygon = NetTopologySuite.Geometries.Utilities.GeometryFixer.Fix(union);
+
+                                var buffered = polygon?.Buffer(BufferDistance);
+
+                                if (buffered is not null && buffered.IsValid)
                                 {
-                                    polygon = geometryFactory.CreatePolygon(union.Coordinates);
-                                }
-                                else
-                                {
-                                    polygon = geometryFactory.CreatePolygon(NetTopologySuite.Geometries.Utilities.GeometryFixer.Fix(unioned).Coordinates);
+                                    bufferedGeometries.Add(buffered);
                                 }
                             }
                             else
                             {
-                                polygon = polygons.FirstOrDefault();
-                            }
+                                var polygon = polygons.FirstOrDefault();
 
-                            var buffered = polygon?.Buffer(BufferDistance);
+                                var buffered = polygon?.Buffer(BufferDistance);
 
-                            if (buffered is not null && buffered.IsValid)
-                            {
-                                bufferedGeometries.Add(buffered);
+                                if (buffered is not null && buffered.IsValid)
+                                {
+                                    bufferedGeometries.Add(buffered);
+                                }
                             }
                         }
                         else
