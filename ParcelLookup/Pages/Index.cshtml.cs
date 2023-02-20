@@ -75,7 +75,7 @@ namespace ParcelLookup.Pages
             }
 
             // Treat it as an address.
-            if (!string.IsNullOrWhiteSpace(PIN) && string.IsNullOrWhiteSpace(ParcelNumber) && Message is null)
+            if (!string.IsNullOrWhiteSpace(PIN) && string.IsNullOrWhiteSpace(ParcelNumber) && string.IsNullOrWhiteSpace(Message))
             {
                 try
                 {
@@ -116,7 +116,7 @@ namespace ParcelLookup.Pages
             }
 
             // If the PIN cannot be parsed the page defaults back to the empty search bar and example parcels.
-            if (string.IsNullOrWhiteSpace(Message) && Report is null)
+            if (!string.IsNullOrWhiteSpace(PIN) && string.IsNullOrWhiteSpace(Message) && Report is null)
             {
                 Message = $"Could not match {PIN} to a parcel in King County. Please enter a parcel number or address.";
                 ParcelNumber = PIN;
