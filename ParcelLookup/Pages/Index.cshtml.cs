@@ -34,6 +34,9 @@ namespace ParcelLookup.Pages
         [OutputCache(Duration = 30, VaryByQueryKeys = new string[] { "PIN" })]
         public async Task OnGetAsync(string PIN)
         {
+            // Reset the message field if it has a value between request, to support reusing the same instance for functional testing.
+            Message = !string.IsNullOrWhiteSpace(Message) ? string.Empty : Message;
+
             if (!string.IsNullOrWhiteSpace(PIN))
             {
                 // Drop all non-digit characters.

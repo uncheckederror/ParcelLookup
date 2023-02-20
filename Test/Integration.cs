@@ -14,12 +14,47 @@ namespace Test
             "1924089026",
             "0761000160",
             "0098300430",
-            "3876311580"
+            "3876311580",
+            "0822039083",
+            "1249700005"
+        };
+
+        static readonly string[] _condos = new[]
+        {
+            "202350019008",
+            "8603200060"
+        };
+
+        static readonly string[] _addresses = new[]
+{
+            "4415 31st Ave W",
+            "6116 36th Ave NW",
+            "8715 28th Ave NW",
+            "7012 18th Ave NW",
+            "3403 21st Ave W",
+            "531 10th Ave E",
+            "1760 NW 56TH ST"
         };
 
         public static IEnumerable<object[]> GetPINsGenerator()
         {
             foreach (var account in _parcelNumbers)
+            {
+                yield return new object[] { account };
+            }
+        }
+
+        public static IEnumerable<object[]> GetCondosGenerator()
+        {
+            foreach (var account in _condos)
+            {
+                yield return new object[] { account };
+            }
+        }
+
+        public static IEnumerable<object[]> GetAddressesGenerator()
+        {
+            foreach (var account in _addresses)
             {
                 yield return new object[] { account };
             }
@@ -66,18 +101,6 @@ namespace Test
             Assert.False(string.IsNullOrWhiteSpace(info.Parcel));
             Assert.False(info.HasError);
             Assert.False(string.IsNullOrWhiteSpace(info.Jurisdiction.Value));
-        }
-
-        [Fact]
-        public async Task OnGetAsyncTest()
-        {
-            var reportFactory = new ParcelLookup.Pages.DistrictsReportModel(_configuration);
-            await reportFactory.OnGetAsync("7010700760");
-            await reportFactory.OnGetAsync("1924089026");
-            await reportFactory.OnGetAsync("0761000160");
-            await reportFactory.OnGetAsync("0098300430");
-            await reportFactory.OnGetAsync("202350019008");
-            await reportFactory.OnGetAsync("3876311580");
         }
     }
 }
