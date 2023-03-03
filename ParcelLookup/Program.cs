@@ -1,4 +1,8 @@
+using ParcelLookup.Models;
+
 var builder = WebApplication.CreateBuilder(args);
+
+
 
 // Add services to the container.
 builder.Services.AddRazorPages();
@@ -7,7 +11,9 @@ builder.Services.AddOutputCache(options =>
     options.AddBasePolicy(builder =>
     builder.Expire(TimeSpan.FromSeconds(30)));
 });
-
+AppConfiguration config = new();
+builder.Configuration.Bind(config);
+builder.Services.AddSingleton(config);
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

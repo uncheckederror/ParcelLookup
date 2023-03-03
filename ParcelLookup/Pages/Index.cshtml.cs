@@ -1,9 +1,11 @@
 using Flurl.Http;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.Extensions.Logging;
 using NetTopologySuite.Geometries;
 using ParcelLookup.Models;
 using System.Text.Json;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ParcelLookup.Pages
 {
@@ -11,18 +13,18 @@ namespace ParcelLookup.Pages
     {
         public string ParcelNumber { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
-        public ParcelInfo? ParcelInfo { get; set; } = null;
-        public DistrictsReport? Report { get; set; } = null;
+        public ParcelInfo ParcelInfo { get; set; } = new();
+        public DistrictsReport Report { get; set; } = new();
         private readonly int BufferDistance = -1;
-        private readonly IConfiguration _configuration;
+        private readonly AppConfiguration AppConfiguration = new();
 
         /// <summary>
         /// Get configuration data (magic strings)
         /// </summary>
         /// <param name="configuration"></param>
-        public DistrictsReportModel(IConfiguration configuration)
+        public DistrictsReportModel(AppConfiguration config)
         {
-            _configuration = configuration;
+            AppConfiguration = config;
         }
 
         /// <summary>
@@ -101,11 +103,18 @@ namespace ParcelLookup.Pages
             if (!string.IsNullOrWhiteSpace(ParcelNumber))
             {
                 // Query the backend api for the parcel number to find the current account number.
-                var parcelInfoUrl = $"{_configuration["KingCountyAPIs:ParcelInfo"]}{ParcelNumber}";
+                var parcelInfoUrl = $"{AppConfiguration.KingCountyAPIs.ParcelInfo}{ParcelNumber}";
                 // Could this API call be replaced with a direct database call?
-                ParcelInfo = await parcelInfoUrl.GetJsonAsync<ParcelInfo>();
+                try
+                {
+                    ParcelInfo = await parcelInfoUrl.GetJsonAsync<ParcelInfo>();
+                }
+                catch (FlurlHttpException ex)
+                {
+                    Message = await ex.GetResponseStringAsync();
+                }
 
-                if (ParcelInfo is not null && !string.IsNullOrWhiteSpace(ParcelInfo?.Parcel))
+                if (!string.IsNullOrWhiteSpace(ParcelInfo?.Parcel))
                 {
                     // PIN is for a condo unit; so convert to condocomplex PIN.
                     if (ParcelInfo.IsCondo)
@@ -138,13 +147,13 @@ namespace ParcelLookup.Pages
         public async Task<DistrictsReport> DistrictsReport(ParcelInfo parcel)
         {
             // Get the layer definitions for the Districts Report map service.
-            var districtServicesUrl = $"{_configuration["KingCountyAPIs:DistrictReport"]}?f=pjson";
+            var districtServicesUrl = $"{AppConfiguration.KingCountyAPIs.DistrictReport}?f=pjson";
             var districts = await districtServicesUrl.GetJsonAsync<MapServiceDescription>();
 
             // Reuse the extent from the map service definition because we don't want to calculate it or query for it.
             var extent = $"{districts?.initialExtent?.xmax},{districts?.initialExtent?.ymax},{districts?.initialExtent?.xmin},{districts?.initialExtent?.ymin}";
             var parcelAddressAreaLayer = districts?.layers?.FirstOrDefault(x => x.name == "parcel_address_area")?.id;
-            var layerServiceUrl = $"{_configuration["KingCountyAPIs:DistrictReport"]}{parcelAddressAreaLayer}/query";
+            var layerServiceUrl = $"{AppConfiguration.KingCountyAPIs.DistrictReport}{parcelAddressAreaLayer}/query";
             var pinQueryResponse = await layerServiceUrl
                                         .PostUrlEncodedAsync(new
                                         {
@@ -171,7 +180,7 @@ namespace ParcelLookup.Pages
             }
 
             // Run the identify query based on the buffered parcel geometry.
-            var identifyQueryUrl = $"{_configuration["KingCountyAPIs:DistrictReport"]}Identify";
+            var identifyQueryUrl = $"{AppConfiguration.KingCountyAPIs.DistrictReport}Identify";
             var matchingDistrictsResponse = await identifyQueryUrl.PostUrlEncodedAsync(new
             {
                 geometryType = "esriGeometryPolygon",
@@ -219,7 +228,7 @@ namespace ParcelLookup.Pages
         /// <param name="pinQuery"></param>
         /// <param name="matchingDistricts"></param>
         /// <returns></returns>
-        public DistrictsReport GetFormattedDistrictsReport(ParcelInfo? parcel, MapServiceLayerQuery? pinQuery, DistrictsReportIdentify? matchingDistricts)
+        public DistrictsReport GetFormattedDistrictsReport(ParcelInfo parcel, MapServiceLayerQuery pinQuery, DistrictsReportIdentify matchingDistricts)
         {
             // Force all the layernames to be lowercase to regularize them and prevent mismatching.
             if (matchingDistricts?.results is not null && matchingDistricts.results.Any())
@@ -240,14 +249,14 @@ namespace ParcelLookup.Pages
                 foreach (var city in jurisdictionResults)
                 {
                     var name = city?.attributes?.CITYNAME ?? "King County";
-                    var link = GetJuristictionLinkByParcelNumber(parcel!.Parcel, name, _configuration);
+                    var link = GetJuristictionLinkByParcelNumber(parcel!.Parcel, name, AppConfiguration.JurisdictionLinks);
                     jurisdictions.Add(new DistrictsReport.ParcelJurisdiction { Name = name, Url = link });
                 }
             }
             else
             {
                 var name = jurisdictionResults?.FirstOrDefault()?.attributes?.CITYNAME ?? "King County";
-                var link = GetJuristictionLinkByParcelNumber(parcel!.Parcel, name, _configuration);
+                var link = GetJuristictionLinkByParcelNumber(parcel!.Parcel, name, AppConfiguration.JurisdictionLinks);
                 jurisdictions.Add(new DistrictsReport.ParcelJurisdiction { Name = name, Url = link });
             }
 
@@ -263,14 +272,14 @@ namespace ParcelLookup.Pages
 
             var watershedResults = matchingDistricts?.results?.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.WTRSHD_NAME).ToArray();
             var watershed = watershedResults?.Length > 1 ? string.Join(" and ", watershedResults) : watershedResults?.FirstOrDefault();
-            var watershedLink = GetWatershedLinkByName(watershed ?? string.Empty, _configuration);
+            var watershedLink = GetWatershedLinkByName(watershed ?? string.Empty, AppConfiguration.WatershedLinks);
 
             var wriaNameResults = matchingDistricts?.results?.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.WRIA_NAME).ToArray();
             var wriaName = wriaNameResults?.Length > 1 ? string.Join(" and ", wriaNameResults) : wriaNameResults?.FirstOrDefault();
 
             var wriaNumberResults = matchingDistricts?.results?.Where(x => x.layerName is "topo_basin").Select(x => x?.attributes?.WRIA_NO).ToArray();
             var wriaNumber = wriaNumberResults?.Length > 1 ? string.Join(" and ", wriaNumberResults) : wriaNumberResults?.FirstOrDefault();
-            var wriaLink = GetWRIALinkByWRIANumber(wriaNumber ?? string.Empty, _configuration);
+            var wriaLink = GetWRIALinkByWRIANumber(wriaNumber ?? string.Empty, AppConfiguration.WRIALinks);
 
             var votingDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "votdst").Select(x => x?.attributes?.NAME).ToArray();
             var votingDistrict = votingDistrictResults?.Length > 1 ? string.Join(" and ", votingDistrictResults) : votingDistrictResults?.FirstOrDefault();
@@ -290,7 +299,7 @@ namespace ParcelLookup.Pages
             var schoolDistrictResults = matchingDistricts?.results?.Where(x => x.layerName is "schdst").ToArray();
             var schoolDistrictPrimary = schoolDistrictResults?.Length > 1 ? GetSchoolDistrictByArea(schoolDistrictResults, pinQuery!) : schoolDistrictResults?.FirstOrDefault();
             var schoolDistrict = $"{schoolDistrictPrimary?.attributes?.NAME} {schoolDistrictPrimary?.attributes?.SCHDST}";
-            var schoolDistrictLink = GetSchoolDistrictLinkByNumber(schoolDistrictPrimary?.attributes?.SCHDST ?? string.Empty, _configuration);
+            var schoolDistrictLink = GetSchoolDistrictLinkByNumber(schoolDistrictPrimary?.attributes?.SCHDST ?? string.Empty, AppConfiguration.SchoolDistrictLinks);
 
             var schoolDistrictBoardResults = matchingDistricts?.results?.Where(x => x.layerName is "dirdst").Select(x => x?.attributes?.NAME).ToArray();
             var schoolDistrictBoard = schoolDistrictBoardResults?.Length > 1 ? string.Join(" and ", schoolDistrictBoardResults) : schoolDistrictBoardResults?.FirstOrDefault();
@@ -428,7 +437,7 @@ namespace ParcelLookup.Pages
                         sensitiveAreaNotices.Add(new DistrictsReport.SensitiveAreaNotice
                         {
                             RecordingId = notice,
-                            Link = $"{_configuration["RelatedServices:Instrument"]}{notice}",
+                            Link = $"{AppConfiguration.RelatedServices.Instrument}{notice}",
                         });
                     }
                 }
@@ -495,15 +504,15 @@ namespace ParcelLookup.Pages
                 AquiferRechargeArea = criticalAquafier ?? "No",
                 Wetlands = wetlanding ?? "No",
                 ShorelineManagementDesignation = shorelineManagement ?? "No",
-                RealPropertyLink = $"{_configuration["RelatedServices:EReal"]}{parcel?.Parcel}",
-                TreasuryLink = $"{_configuration["RelatedServices:Tax"]}{parcel?.Parcel}",
-                QuarterSectionLink = $"{_configuration["RelatedServices:EMap"]}{parcel?.Parcel}",
-                PermittingLink = $"{_configuration["RelatedServices:Permit"]}{parcel?.Parcel}&tab=2",
-                SepticLink = $"{_configuration["RelatedServices:Septic"]}{parcel?.Parcel}",
-                PlatLink = $"{_configuration["RelatedServices:BookPage"]}booknumber={parcel?.Plat_Book}&bookpage={parcel?.Plat_Page}",
-                SurveysLink = $"{_configuration["RelatedServices:PlatSurvey"]}section={parcel?.PLSS_Section}&township={parcel?.PLSS_Township}&range={parcel?.PLSS_Range}&quarter={parcel?.PLSS_QuarterSection}",
-                iMapLink = $"{_configuration["RelatedServices:iMap"]}{parcel?.Parcel}",
-                ParcelViewerLink = $"{_configuration["RelatedServices:ParcelViewer"]}{parcel?.Parcel}",
+                RealPropertyLink = $"{AppConfiguration.RelatedServices.EReal}{parcel?.Parcel}",
+                TreasuryLink = $"{AppConfiguration.RelatedServices.Tax}{parcel?.Parcel}",
+                QuarterSectionLink = $"{AppConfiguration.RelatedServices.EMap}{parcel?.Parcel}",
+                PermittingLink = $"{AppConfiguration.RelatedServices.Permit}{parcel?.Parcel}&tab=2",
+                SepticLink = $"{AppConfiguration.RelatedServices.Septic}{parcel?.Parcel}",
+                PlatLink = $"{AppConfiguration.RelatedServices.BookPage}booknumber={parcel?.Plat_Book}&bookpage={parcel?.Plat_Page}",
+                SurveysLink = $"{AppConfiguration.RelatedServices.PlatSurvey}section={parcel?.PLSS_Section}&township={parcel?.PLSS_Township}&range={parcel?.PLSS_Range}&quarter={parcel?.PLSS_QuarterSection}",
+                iMapLink = $"{AppConfiguration.RelatedServices.iMAP}{parcel?.Parcel}",
+                ParcelViewerLink = $"{AppConfiguration.RelatedServices.ParcelViewer}{parcel?.Parcel}",
                 SensitiveAreaNotices = sensitiveAreaNotices.ToArray(),
             };
         }
@@ -514,14 +523,15 @@ namespace ParcelLookup.Pages
         /// <param name="schoolDistrictResults"></param>
         /// <param name="pinQuery"></param>
         /// <returns></returns>
-        public DistrictsReportIdentify.Result? GetSchoolDistrictByArea(DistrictsReportIdentify.Result[] schoolDistrictResults, MapServiceLayerQuery pinQuery)
+        public DistrictsReportIdentify.Result GetSchoolDistrictByArea(DistrictsReportIdentify.Result[] schoolDistrictResults, MapServiceLayerQuery pinQuery)
         {
             var checkParse = double.TryParse(pinQuery?.features?.FirstOrDefault()?.attributes?.ShapeSTArea, out var featureArea);
             var highestOverlayPercent = 0.0;
-            DistrictsReportIdentify.Result? highestDistrict = null;
 
             if (checkParse && schoolDistrictResults is not null && schoolDistrictResults.Any())
             {
+                DistrictsReportIdentify.Result highestDistrict = new();
+
                 foreach (var school in schoolDistrictResults)
                 {
                     checkParse = double.TryParse(school?.attributes?.ShapeSTArea, out var overlayArea);
@@ -540,7 +550,7 @@ namespace ParcelLookup.Pages
             }
             else
             {
-                return schoolDistrictResults?.FirstOrDefault();
+                return schoolDistrictResults?.FirstOrDefault() ?? new();
             }
         }
 
@@ -552,109 +562,114 @@ namespace ParcelLookup.Pages
         /// <param name="tukwila"></param>
         /// <param name="pinQuery"></param>
         /// <returns></returns>
-        public async Task<DistrictsReport.ParcelTukwila?> GetTukwilaReportByParcelNumberAsync(string parcelNumber, string extent, DistrictsReport.ParcelJurisdiction? tukwila, MapServiceLayerQuery? pinQuery)
+        public async Task<DistrictsReport.ParcelTukwila> GetTukwilaReportByParcelNumberAsync(string parcelNumber, string extent, DistrictsReport.ParcelJurisdiction tukwila, MapServiceLayerQuery? pinQuery)
         {
             if (tukwila is not null && pinQuery is not null && !string.IsNullOrWhiteSpace(parcelNumber) && !string.IsNullOrWhiteSpace(extent))
             {
-                // Magic
-                var tukwilaServicesUrl = "https://maps.tukwilawa.gov/arcgis/rest/services/iMap/DistrictsReport/MapServer/?f=pjson";
-                var tukwilaLayers = await tukwilaServicesUrl.GetJsonAsync<MapServiceDescription>();
-
                 var tukwilaIdentifyQueryUrl = $"https://maps.tukwilawa.gov/arcgis/rest/services/iMap/DistrictsReport/MapServer/Identify";
-                var tukwilaMatchingDistrictsResponse = await tukwilaIdentifyQueryUrl.PostUrlEncodedAsync(new
+
+                try
                 {
-                    geometryType = "esriGeometryPolygon",
-                    geometry = JsonSerializer.Serialize(pinQuery?.features?.FirstOrDefault()?.geometry),
-                    mapExtent = extent,
-                    tolerance = 0,
-                    imageDisplay = "1024,768,96",
-                    returnGeometry = false,
-                    sr = pinQuery?.spatialReference?.wkid,
-                    f = "json",
-                    layers = "all"
-                });
-                var tukwilastringCheck = await tukwilaMatchingDistrictsResponse.GetStringAsync();
-                var tukwilaMatchingDistricts = await tukwilaMatchingDistrictsResponse.GetJsonAsync<DistrictsReportIdentify>();
+                    var tukwilaMatchingDistrictsResponse = await tukwilaIdentifyQueryUrl.PostUrlEncodedAsync(new
+                    {
+                        geometryType = "esriGeometryPolygon",
+                        geometry = JsonSerializer.Serialize(pinQuery?.features?.FirstOrDefault()?.geometry),
+                        mapExtent = extent,
+                        tolerance = 0,
+                        imageDisplay = "1024,768,96",
+                        returnGeometry = false,
+                        sr = pinQuery?.spatialReference?.wkid,
+                        f = "json",
+                        layers = "all"
+                    });
+                    var tukwilaMatchingDistricts = await tukwilaMatchingDistrictsResponse.GetJsonAsync<DistrictsReportIdentify>();
 
-                var tukwilaAddressResults = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "AddressPoints").Select(x => x?.attributes?.ComboAddress).ToArray();
-                var tukwilaAddress = tukwilaAddressResults?.Length > 1 ? string.Join(" and ", tukwilaAddressResults) : tukwilaAddressResults?.FirstOrDefault();
+                    var tukwilaAddressResults = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "AddressPoints").Select(x => x?.attributes?.ComboAddress).ToArray();
+                    var tukwilaAddress = tukwilaAddressResults?.Length > 1 ? string.Join(" and ", tukwilaAddressResults) : tukwilaAddressResults?.FirstOrDefault();
 
-                var tukwilaFishResults = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "FishAndWildlifeHabitat").Select(x => x?.attributes?.HabitatType).ToArray();
-                var tukwilaFish = tukwilaFishResults?.Length > 1 ? string.Join(" and ", tukwilaFishResults) : tukwilaFishResults?.FirstOrDefault();
+                    var tukwilaFishResults = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "FishAndWildlifeHabitat").Select(x => x?.attributes?.HabitatType).ToArray();
+                    var tukwilaFish = tukwilaFishResults?.Length > 1 ? string.Join(" and ", tukwilaFishResults) : tukwilaFishResults?.FirstOrDefault();
 
-                var tukwilaWetlandsResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Wetlands").Select(x => x?.attributes?.WetlandClass).ToArray();
-                var tukwilaWetlands = tukwilaWetlandsResult?.Length > 1 ? string.Join(" and ", tukwilaWetlandsResult) : tukwilaWetlandsResult?.FirstOrDefault();
+                    var tukwilaWetlandsResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Wetlands").Select(x => x?.attributes?.WetlandClass).ToArray();
+                    var tukwilaWetlands = tukwilaWetlandsResult?.Length > 1 ? string.Join(" and ", tukwilaWetlandsResult) : tukwilaWetlandsResult?.FirstOrDefault();
 
-                var tukwilaWetlandsBufferResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "WetlandsBuffer").Select(x => x?.attributes?.BufferWidth).ToArray();
-                var tukwilaWetlandsBuffer = tukwilaWetlandsBufferResult?.Length > 1 ? string.Join(" and ", tukwilaWetlandsBufferResult) : tukwilaWetlandsBufferResult?.FirstOrDefault();
+                    var tukwilaWetlandsBufferResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "WetlandsBuffer").Select(x => x?.attributes?.BufferWidth).ToArray();
+                    var tukwilaWetlandsBuffer = tukwilaWetlandsBufferResult?.Length > 1 ? string.Join(" and ", tukwilaWetlandsBufferResult) : tukwilaWetlandsBufferResult?.FirstOrDefault();
 
-                var tukwilaShorelineResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "ShorelineJurisdiction").Select(x => x?.attributes?.ShoreEnvir).ToArray();
-                var tukwilaShoreline = tukwilaShorelineResult?.Length > 1 ? string.Join(" and ", tukwilaShorelineResult) : tukwilaShorelineResult?.FirstOrDefault();
+                    var tukwilaShorelineResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "ShorelineJurisdiction").Select(x => x?.attributes?.ShoreEnvir).ToArray();
+                    var tukwilaShoreline = tukwilaShorelineResult?.Length > 1 ? string.Join(" and ", tukwilaShorelineResult) : tukwilaShorelineResult?.FirstOrDefault();
 
-                var tukwilaLandslide = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Landslide").FirstOrDefault();
-                var tukwilaSeismic = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "SeismicHazardAreas").FirstOrDefault();
-                var tukwilaMinehazard = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "MineHazardAreas").FirstOrDefault();
+                    var tukwilaLandslide = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Landslide").FirstOrDefault();
+                    var tukwilaSeismic = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "SeismicHazardAreas").FirstOrDefault();
+                    var tukwilaMinehazard = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "MineHazardAreas").FirstOrDefault();
 
-                var tukwilaStreamResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Streams").Select(x => x?.attributes?.StreamName).ToArray();
-                var tukwilaStream = tukwilaStreamResult?.Length > 1 ? string.Join(" and ", tukwilaStreamResult) : tukwilaStreamResult?.FirstOrDefault();
+                    var tukwilaStreamResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Streams").Select(x => x?.attributes?.StreamName).ToArray();
+                    var tukwilaStream = tukwilaStreamResult?.Length > 1 ? string.Join(" and ", tukwilaStreamResult) : tukwilaStreamResult?.FirstOrDefault();
 
-                var tukwilaStreamBufferResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "StreamBuffers").Select(x => x?.attributes?.BufferWidth).ToArray();
-                var tukwilaStreamBuffer = tukwilaStreamBufferResult?.Length > 1 ? string.Join(" and ", tukwilaStreamBufferResult) : tukwilaStreamBufferResult?.FirstOrDefault();
+                    var tukwilaStreamBufferResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "StreamBuffers").Select(x => x?.attributes?.BufferWidth).ToArray();
+                    var tukwilaStreamBuffer = tukwilaStreamBufferResult?.Length > 1 ? string.Join(" and ", tukwilaStreamBufferResult) : tukwilaStreamBufferResult?.FirstOrDefault();
 
-                var tukwilaZoningResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Zoning").Select(x => x?.attributes?.ZoningDescription)?.ToArray();
-                var tukwilaZoning = tukwilaStreamBufferResult?.Length > 1 ? string.Join(" and ", tukwilaZoningResult ?? Array.Empty<string>()) : tukwilaZoningResult?.FirstOrDefault();
+                    var tukwilaZoningResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Zoning").Select(x => x?.attributes?.ZoningDescription)?.ToArray();
+                    var tukwilaZoning = tukwilaStreamBufferResult?.Length > 1 ? string.Join(" and ", tukwilaZoningResult ?? Array.Empty<string>()) : tukwilaZoningResult?.FirstOrDefault();
 
-                var tukwilaZoningOverlayResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Zoning_Overlays").Select(x => x?.attributes?.Overlay).ToArray();
-                var tukwilaZoningOverlay = tukwilaZoningOverlayResult?.Length > 1 ? string.Join(" and ", tukwilaZoningOverlayResult) : tukwilaZoningOverlayResult?.FirstOrDefault();
+                    var tukwilaZoningOverlayResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "Zoning_Overlays").Select(x => x?.attributes?.Overlay).ToArray();
+                    var tukwilaZoningOverlay = tukwilaZoningOverlayResult?.Length > 1 ? string.Join(" and ", tukwilaZoningOverlayResult) : tukwilaZoningOverlayResult?.FirstOrDefault();
 
-                var tukwilaCompPlanResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "CompPlan").Select(x => x?.attributes?.CompPlanDescription).ToArray();
-                var tukwilaCompPlan = tukwilaCompPlanResult?.Length > 1 ? string.Join(" and ", tukwilaCompPlanResult) : tukwilaCompPlanResult?.FirstOrDefault();
+                    var tukwilaCompPlanResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "CompPlan").Select(x => x?.attributes?.CompPlanDescription).ToArray();
+                    var tukwilaCompPlan = tukwilaCompPlanResult?.Length > 1 ? string.Join(" and ", tukwilaCompPlanResult) : tukwilaCompPlanResult?.FirstOrDefault();
 
-                var tukwilaWaterServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "WaterService").Select(x => x?.attributes?.WaterService).ToArray();
-                var tukwilaWaterService = tukwilaWaterServiceResult?.Length > 1 ? string.Join(" and ", tukwilaWaterServiceResult) : tukwilaWaterServiceResult?.FirstOrDefault();
+                    var tukwilaWaterServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "WaterService").Select(x => x?.attributes?.WaterService).ToArray();
+                    var tukwilaWaterService = tukwilaWaterServiceResult?.Length > 1 ? string.Join(" and ", tukwilaWaterServiceResult) : tukwilaWaterServiceResult?.FirstOrDefault();
 
-                var tukwilaSewerServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "SewerService").Select(x => x?.attributes?.SewerService).ToArray();
-                var tukwilaSewerService = tukwilaSewerServiceResult?.Length > 1 ? string.Join(" and ", tukwilaSewerServiceResult) : tukwilaSewerServiceResult?.FirstOrDefault();
+                    var tukwilaSewerServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "SewerService").Select(x => x?.attributes?.SewerService).ToArray();
+                    var tukwilaSewerService = tukwilaSewerServiceResult?.Length > 1 ? string.Join(" and ", tukwilaSewerServiceResult) : tukwilaSewerServiceResult?.FirstOrDefault();
 
-                var tukwilaStormServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "StormService").Select(x => x?.attributes?.StormService).ToArray();
-                var tukwilaStormService = tukwilaStormServiceResult?.Length > 1 ? string.Join(" and ", tukwilaStormServiceResult) : tukwilaStormServiceResult?.FirstOrDefault();
+                    var tukwilaStormServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "StormService").Select(x => x?.attributes?.StormService).ToArray();
+                    var tukwilaStormService = tukwilaStormServiceResult?.Length > 1 ? string.Join(" and ", tukwilaStormServiceResult) : tukwilaStormServiceResult?.FirstOrDefault();
 
-                var tukwilaPowerServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "PowerService").Select(x => x?.attributes?.PowerService).ToArray();
-                var tukwilaPowerService = tukwilaPowerServiceResult?.Length > 1 ? string.Join(" and ", tukwilaPowerServiceResult) : tukwilaPowerServiceResult?.FirstOrDefault();
+                    var tukwilaPowerServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "PowerService").Select(x => x?.attributes?.PowerService).ToArray();
+                    var tukwilaPowerService = tukwilaPowerServiceResult?.Length > 1 ? string.Join(" and ", tukwilaPowerServiceResult) : tukwilaPowerServiceResult?.FirstOrDefault();
 
-                var tukwilaPoliceServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "PoliceService").Select(x => x?.attributes?.PoliceServ).ToArray();
-                var tukwilaPoliceService = tukwilaPoliceServiceResult?.Length > 1 ? string.Join(" and ", tukwilaPoliceServiceResult) : tukwilaPoliceServiceResult?.FirstOrDefault();
+                    var tukwilaPoliceServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "PoliceService").Select(x => x?.attributes?.PoliceServ).ToArray();
+                    var tukwilaPoliceService = tukwilaPoliceServiceResult?.Length > 1 ? string.Join(" and ", tukwilaPoliceServiceResult) : tukwilaPoliceServiceResult?.FirstOrDefault();
 
-                var tukwilaGarbageServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "GarbageService").Select(x => x?.attributes?.GarbageSer).ToArray();
-                var tukwilaGarbageService = tukwilaGarbageServiceResult?.Length > 1 ? string.Join(" and ", tukwilaGarbageServiceResult) : tukwilaGarbageServiceResult?.FirstOrDefault();
+                    var tukwilaGarbageServiceResult = tukwilaMatchingDistricts?.results?.Where(x => x?.layerName is "GarbageService").Select(x => x?.attributes?.GarbageSer).ToArray();
+                    var tukwilaGarbageService = tukwilaGarbageServiceResult?.Length > 1 ? string.Join(" and ", tukwilaGarbageServiceResult) : tukwilaGarbageServiceResult?.FirstOrDefault();
 
-                return new DistrictsReport.ParcelTukwila
+                    return new DistrictsReport.ParcelTukwila
+                    {
+                        SiteAddress = tukwilaAddress ?? string.Empty,
+                        FishAndWildlife = tukwilaFish ?? "No",
+                        Wetlands = tukwilaWetlands ?? "No",
+                        WetlandsBufferWidth = tukwilaWetlandsBuffer ?? "N/A",
+                        ShorelineJurisdiction = tukwilaShoreline ?? "N/A",
+                        Landslide = tukwilaLandslide is not null ? "Yes" : "No",
+                        Seismic = tukwilaSeismic is not null ? "Yes" : "No",
+                        Coalmine = tukwilaMinehazard is not null ? "Yes" : "No",
+                        Stream = tukwilaStream ?? "No",
+                        StreamBufferWidth = tukwilaStreamBuffer ?? "N/A",
+                        ZoningDistrict = tukwilaZoning ?? string.Empty,
+                        ZoningOverlay = tukwilaZoningOverlay ?? "N/A",
+                        CompPlanLandUseDesignation = tukwilaCompPlan ?? string.Empty,
+                        WaterServiceDistrict = tukwilaWaterService ?? string.Empty,
+                        SewerServiceDistrict = tukwilaSewerService ?? string.Empty,
+                        StormServiceDistrict = tukwilaStormService ?? string.Empty,
+                        PowerServiceDistrict = tukwilaPowerService ?? string.Empty,
+                        PoliceServiceDistrict = tukwilaPoliceService ?? string.Empty,
+                        GarbageServiceDistrict = tukwilaGarbageService ?? string.Empty,
+                        TukwilaMapLink = $"{AppConfiguration.RelatedServices.TukwilaMap}{parcelNumber}"
+                    };
+                }
+                catch (FlurlHttpException ex)
                 {
-                    SiteAddress = tukwilaAddress ?? string.Empty,
-                    FishAndWildlife = tukwilaFish ?? "No",
-                    Wetlands = tukwilaWetlands ?? "No",
-                    WetlandsBufferWidth = tukwilaWetlandsBuffer ?? "N/A",
-                    ShorelineJurisdiction = tukwilaShoreline ?? "N/A",
-                    Landslide = tukwilaLandslide is not null ? "Yes" : "No",
-                    Seismic = tukwilaSeismic is not null ? "Yes" : "No",
-                    Coalmine = tukwilaMinehazard is not null ? "Yes" : "No",
-                    Stream = tukwilaStream ?? "No",
-                    StreamBufferWidth = tukwilaStreamBuffer ?? "N/A",
-                    ZoningDistrict = tukwilaZoning ?? string.Empty,
-                    ZoningOverlay = tukwilaZoningOverlay ?? "N/A",
-                    CompPlanLandUseDesignation = tukwilaCompPlan ?? string.Empty,
-                    WaterServiceDistrict = tukwilaWaterService ?? string.Empty,
-                    SewerServiceDistrict = tukwilaSewerService ?? string.Empty,
-                    StormServiceDistrict = tukwilaStormService ?? string.Empty,
-                    PowerServiceDistrict = tukwilaPowerService ?? string.Empty,
-                    PoliceServiceDistrict = tukwilaPoliceService ?? string.Empty,
-                    GarbageServiceDistrict = tukwilaGarbageService ?? string.Empty,
-                    TukwilaMapLink = $"{_configuration["RelatedServices:TukwilaMap"]}{parcelNumber}"
-                };
+                    var error = await ex.GetResponseStringAsync();
+                }
+
+                return new();
             }
             else
             {
-                return null;
+                return new();
             }
         }
 
@@ -664,30 +679,30 @@ namespace ParcelLookup.Pages
         /// <param name="schoolDistrictNumber"></param>
         /// <param name="configuration"></param>
         /// <returns></returns>
-        public static string GetSchoolDistrictLinkByNumber(string schoolDistrictNumber, IConfiguration configuration)
+        public static string GetSchoolDistrictLinkByNumber(string schoolDistrictNumber, SchoolDistricts schoolDistricts)
         {
             return schoolDistrictNumber switch
             {
-                "1" => configuration["SchoolDistrictLinks:Seattle"],
-                "210" => configuration["SchoolDistrictLinks:FedWay"],
-                "216" => configuration["SchoolDistrictLinks:Enumclaw"],
-                "400" => configuration["SchoolDistrictLinks:Mercer"],
-                "401" => configuration["SchoolDistrictLinks:Highline"],
-                "402" => configuration["SchoolDistrictLinks:Vashon"],
-                "403" => configuration["SchoolDistrictLinks:Renton"],
-                "404" => configuration["SchoolDistrictLinks:Skykomish"],
-                "405" => configuration["SchoolDistrictLinks:Bellevue"],
-                "406" => configuration["SchoolDistrictLinks:Tuckwila"],
-                "407" => configuration["SchoolDistrictLinks:Riverview"],
-                "408" => configuration["SchoolDistrictLinks:Auburn"],
-                "409" => configuration["SchoolDistrictLinks:Tahoma"],
-                "410" => configuration["SchoolDistrictLinks:Snoqualmie"],
-                "411" => configuration["SchoolDistrictLinks:Issaquah"],
-                "412" => configuration["SchoolDistrictLinks:Shoreline"],
-                "414" => configuration["SchoolDistrictLinks:LkWA"],
-                "415" => configuration["SchoolDistrictLinks:Kent"],
-                "417" => configuration["SchoolDistrictLinks:Northshore"],
-                "888" => configuration["SchoolDistrictLinks:Fife"],
+                "1" => schoolDistricts.Seattle,
+                "210" => schoolDistricts.FedWay,
+                "216" => schoolDistricts.Enumclaw,
+                "400" => schoolDistricts.Mercer,
+                "401" => schoolDistricts.Highline,
+                "402" => schoolDistricts.Vashon,
+                "403" => schoolDistricts.Renton,
+                "404" => schoolDistricts.Skykomish,
+                "405" => schoolDistricts.Bellevue,
+                "406" => schoolDistricts.Tuckwila,
+                "407" => schoolDistricts.Riverview,
+                "408" => schoolDistricts.Auburn,
+                "409" => schoolDistricts.Tahoma,
+                "410" => schoolDistricts.Snoqualmie,
+                "411" => schoolDistricts.Issaquah,
+                "412" => schoolDistricts.Shoreline,
+                "414" => schoolDistricts.LkWA,
+                "415" => schoolDistricts.Kent,
+                "417" => schoolDistricts.Northshore,
+                "888" => schoolDistricts.Fife,
                 _ => string.Empty
             };
         }
@@ -698,16 +713,16 @@ namespace ParcelLookup.Pages
         /// <param name="watershed"></param>
         /// <param name="configuration"></param>
         /// <returns></returns>
-        public static string GetWatershedLinkByName(string watershed, IConfiguration configuration)
+        public static string GetWatershedLinkByName(string watershed, Watersheds watersheds)
         {
             return watershed switch
             {
-                "Central Puget Sound" => configuration["WatershedLinks:PugetSound"],
-                "Cedar River / Lake Washington" => configuration["WatershedLinks:Cedar"],
-                "Sammamish River" => configuration["WatershedLinks:Sammamish"],
-                "Snoqualmie River" => configuration["WatershedLinks:Snoqualmie"],
-                "Duwamish - Green River" => configuration["WatershedLinks:Green"],
-                "White River" => configuration["WatershedLinks:White"],
+                "Central Puget Sound" => watersheds.PugetSound,
+                "Cedar River / Lake Washington" => watersheds.Cedar,
+                "Sammamish River" => watersheds.Sammamish,
+                "Snoqualmie River" => watersheds.Snoqualmie,
+                "Duwamish - Green River" => watersheds.Green,
+                "White River" => watersheds.White,
                 _ => string.Empty,
             };
         }
@@ -718,14 +733,14 @@ namespace ParcelLookup.Pages
         /// <param name="wriaNumber"></param>
         /// <param name="configuration"></param>
         /// <returns></returns>
-        public static string GetWRIALinkByWRIANumber(string wriaNumber, IConfiguration configuration)
+        public static string GetWRIALinkByWRIANumber(string wriaNumber, WRIAs wrias)
         {
             return wriaNumber switch
             {
-                "7" => configuration["WRIALinks:7"],
-                "8" => configuration["WRIALinks:8"],
-                "9" => configuration["WRIALinks:9"],
-                "10" => configuration["WRIALinks:10"],
+                "7" => wrias.WRIA7,
+                "8" => wrias.WRIA8,
+                "9" => wrias.WRIA9,
+                "10" => wrias.WRIA10,
                 _ => string.Empty,
             };
         }
@@ -764,12 +779,12 @@ namespace ParcelLookup.Pages
         /// <param name="jurisdiction"></param>
         /// <param name="configuration"></param>
         /// <returns></returns>
-        public static string GetJuristictionLinkByParcelNumber(string parcelNumber, string jurisdiction, IConfiguration configuration)
+        public static string GetJuristictionLinkByParcelNumber(string parcelNumber, string jurisdiction, Jurisdiction links)
         {
             return jurisdiction switch
             {
-                "Seattle" => $"{configuration["JurisdictionLinks:SeattleProperyURL"]}{parcelNumber}",
-                "Newcastle" => $"{configuration["JurisdictionLinks:NewcastleURL"]}{parcelNumber}",
+                "Seattle" => $"{links.SeattleProperyURL}{parcelNumber}",
+                "Newcastle" => $"{links.NewcastleURL}{parcelNumber}",
                 // Should we include Tukwila in here rather than having it happen separately in the Tukwila-only districts report?
                 _ => string.Empty,
             };
