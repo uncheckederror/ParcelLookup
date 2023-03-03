@@ -2,7 +2,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
-builder.Services.AddOutputCache();
+builder.Services.AddOutputCache(options =>
+{
+    options.AddBasePolicy(builder =>
+    builder.Expire(TimeSpan.FromSeconds(30)));
+});
 
 var app = builder.Build();
 
@@ -20,10 +24,10 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+app.UseOutputCache();
 
 app.UseAuthorization();
 
-app.MapRazorPages();
-app.UseOutputCache();
+app.MapRazorPages().CacheOutput();
 
 app.Run();

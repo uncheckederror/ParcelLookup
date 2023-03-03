@@ -31,7 +31,7 @@ namespace ParcelLookup.Pages
         /// <param name="PIN">A valid King County Parcel Number (PIN)</param>
         /// <returns>An HTML formatted Districts Report.</returns>
         /// <exception cref="Exception"></exception>
-        [OutputCache(Duration = 30, VaryByQueryKeys = new string[] { "PIN" })]
+        [OutputCache(Duration = 30)]
         public async Task OnGetAsync(string PIN)
         {
             // Reset the message field if it has a value between request, to support reusing the same instance for functional testing.
