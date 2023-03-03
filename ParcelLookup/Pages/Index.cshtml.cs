@@ -222,11 +222,11 @@ namespace ParcelLookup.Pages
         public DistrictsReport GetFormattedDistrictsReport(ParcelInfo? parcel, MapServiceLayerQuery? pinQuery, DistrictsReportIdentify? matchingDistricts)
         {
             // Force all the layernames to be lowercase to regularize them and prevent mismatching.
-            if (matchingDistricts?.results is not null)
+            if (matchingDistricts?.results is not null && matchingDistricts.results.Any())
             {
                 foreach (var layer in matchingDistricts.results)
                 {
-                    layer.layerName = layer?.layerName?.ToLower(System.Globalization.CultureInfo.CurrentCulture);
+                    layer.layerName = layer.layerName.ToLower(System.Globalization.CultureInfo.CurrentCulture);
                 }
             }
 
