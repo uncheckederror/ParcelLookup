@@ -133,7 +133,7 @@ namespace ParcelLookup.Pages
                 Message = $"Could not match {PIN} to a parcel in King County. Please enter a parcel number or address.";
                 ParcelNumber = PIN;
             }
-            else if (Report is null)
+            else if (string.IsNullOrWhiteSpace(Report?.ParcelNumber))
             {
                 ParcelNumber = PIN;
             }

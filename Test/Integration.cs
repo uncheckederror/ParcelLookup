@@ -74,17 +74,21 @@ namespace Test
     {
         private readonly IConfiguration _configuration;
         private readonly ITestOutputHelper _output;
+        private readonly AppConfiguration _appConfiguration;
 
         public Integration(ITestOutputHelper output)
         {
             _output = output;
             _configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
+            AppConfiguration config = new();
+            _configuration.Bind(config);
+            _appConfiguration = config;
         }
 
         [Fact]
         public async Task DistrictsReport()
         {
-            var reportFactory = new ParcelLookup.Pages.DistrictsReportModel(_configuration);
+            var reportFactory = new ParcelLookup.Pages.DistrictsReportModel(_appConfiguration);
             // This would ideally be a real instance of the ParcelInfo data model.
             var empty = await reportFactory.DistrictsReport(new ParcelLookup.Models.ParcelInfo { });
             Assert.NotNull(empty);
