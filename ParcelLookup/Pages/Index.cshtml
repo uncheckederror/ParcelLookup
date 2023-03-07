@@ -88,7 +88,7 @@
     </div>
 </section>
 
-@if (Model?.Report is not null)
+@if (!string.IsNullOrWhiteSpace(Model?.Report?.ParcelNumber))
 {
     <section class="bg-albacore pb-3 d-print-none">
         <div class="container pt-3">
@@ -266,7 +266,6 @@
                                         <strong>@Model?.Report?.VotingDistrict</strong>
                                     </td>
                                 </tr>
-                                <tr>
                                 <tr>
                                     <td>
                                         <a href="https://kingcounty.gov/council/councilmembers/find_district.aspx" target="_blank">King County Council District</a>

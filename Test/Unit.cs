@@ -32,11 +32,11 @@ namespace Test
 
             var seattle = ParcelLookup.Pages.DistrictsReportModel.GetSchoolDistrictLinkByNumber("1", _appConfiguration.SchoolDistrictLinks);
             Assert.NotNull(seattle);
-            Assert.Equal("https://www.seattleschools.org/", seattle);
+            Assert.Equal("https://www.seattleschools.org", seattle);
 
             var fife = ParcelLookup.Pages.DistrictsReportModel.GetSchoolDistrictLinkByNumber("888", _appConfiguration.SchoolDistrictLinks);
             Assert.NotNull(fife);
-            Assert.Equal("https://www.fifeschools.com/", fife);
+            Assert.Equal("https://www.fifeschools.com", fife);
         }
 
         [Fact]
@@ -104,7 +104,7 @@ namespace Test
 
             var newcastle = ParcelLookup.Pages.DistrictsReportModel.GetJuristictionLinkByParcelNumber("4113800190", "Newcastle", _appConfiguration.JurisdictionLinks);
             Assert.NotNull(newcastle);
-            Assert.Equal("http://www.newcastlewa.gov/4113800190", newcastle);
+            Assert.Equal("https://www.newcastlewa.gov/4113800190", newcastle);
         }
     }
 }

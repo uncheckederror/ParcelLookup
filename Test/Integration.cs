@@ -1,8 +1,12 @@
 using Flurl.Http;
 using Microsoft.Extensions.Configuration;
+using Microsoft.VisualStudio.TestPlatform.Utilities;
 using ParcelLookup.Models;
 using System.Collections;
+using System.Text.RegularExpressions;
+using System.Text;
 using Xunit.Abstractions;
+using System.Net.Http;
 
 namespace Test
 {
@@ -35,6 +39,45 @@ namespace Test
             "531 10th Ave E",
             "1760 NW 56TH ST"
         };
+
+        public static IEnumerable<object[]> GetStaticExternalLinks()
+        {
+            var json = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
+            AppConfiguration config = new();
+            json.Bind(config);
+
+            yield return new object[] { config.WRIALinks.WRIA7 };
+            yield return new object[] { config.WRIALinks.WRIA8 };
+            yield return new object[] { config.WRIALinks.WRIA9 };
+            yield return new object[] { config.WRIALinks.WRIA10 };
+            yield return new object[] { config.JurisdictionLinks.NewcastleURL };
+            yield return new object[] { config.WatershedLinks.PugetSound };
+            yield return new object[] { config.WatershedLinks.Cedar };
+            yield return new object[] { config.WatershedLinks.Sammamish };
+            yield return new object[] { config.WatershedLinks.Snoqualmie };
+            yield return new object[] { config.WatershedLinks.Green };
+            yield return new object[] { config.WatershedLinks.White };
+            yield return new object[] { config.SchoolDistrictLinks.Highline };
+            yield return new object[] { config.SchoolDistrictLinks.Seattle };
+            yield return new object[] { config.SchoolDistrictLinks.LkWA };
+            yield return new object[] { config.SchoolDistrictLinks.Mercer };
+            yield return new object[] { config.SchoolDistrictLinks.Northshore };
+            yield return new object[] { config.SchoolDistrictLinks.Shoreline };
+            yield return new object[] { config.SchoolDistrictLinks.Tahoma };
+            yield return new object[] { config.SchoolDistrictLinks.FedWay };
+            yield return new object[] { config.SchoolDistrictLinks.Issaquah };
+            yield return new object[] { config.SchoolDistrictLinks.Riverview };
+            yield return new object[] { config.SchoolDistrictLinks.Tukwila };
+            yield return new object[] { config.SchoolDistrictLinks.Snoqualmie };
+            yield return new object[] { config.SchoolDistrictLinks.Kent };
+            yield return new object[] { config.SchoolDistrictLinks.Auburn };
+            yield return new object[] { config.SchoolDistrictLinks.Renton };
+            yield return new object[] { config.SchoolDistrictLinks.Bellevue };
+            yield return new object[] { config.SchoolDistrictLinks.Enumclaw };
+            yield return new object[] { config.SchoolDistrictLinks.Vashon };
+            yield return new object[] { config.SchoolDistrictLinks.Skykomish };
+            yield return new object[] { config.SchoolDistrictLinks.Fife };
+        }
 
         public static IEnumerable<object[]> GetPINsGenerator()
         {
@@ -70,6 +113,7 @@ namespace Test
             throw new NotImplementedException();
         }
     }
+
     public class Integration
     {
         private readonly IConfiguration _configuration;
@@ -105,6 +149,19 @@ namespace Test
             Assert.False(string.IsNullOrWhiteSpace(info.Parcel));
             Assert.False(info.HasError);
             Assert.False(string.IsNullOrWhiteSpace(info.Jurisdiction.Value));
+        }
+
+        [Theory]
+        [MemberData(nameof(TestData.GetStaticExternalLinks), MemberType = typeof(TestData))]
+        public async Task VerifyExternalLink(string externalLink)
+        {
+            using var client = new HttpClient();
+            // If we don't pretend to be a browser some of these webservers will drop or close our request.
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59");
+            var content = await client.GetAsync(externalLink);
+            _output.WriteLine($"{content.StatusCode}");
+            Assert.True(content.IsSuccessStatusCode);
+            _output.WriteLine($"{externalLink} is still a valid link.");
         }
     }
 }

@@ -692,7 +692,7 @@ namespace ParcelLookup.Pages
                 "403" => schoolDistricts.Renton,
                 "404" => schoolDistricts.Skykomish,
                 "405" => schoolDistricts.Bellevue,
-                "406" => schoolDistricts.Tuckwila,
+                "406" => schoolDistricts.Tukwila,
                 "407" => schoolDistricts.Riverview,
                 "408" => schoolDistricts.Auburn,
                 "409" => schoolDistricts.Tahoma,

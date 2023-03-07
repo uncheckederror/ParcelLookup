@@ -65,7 +65,7 @@
         public string FedWay { get; set; } = string.Empty;
         public string Issaquah { get; set; } = string.Empty;
         public string Riverview { get; set; } = string.Empty;
-        public string Tuckwila { get; set; } = string.Empty;
+        public string Tukwila { get; set; } = string.Empty;
         public string Snoqualmie { get; set; } = string.Empty;
         public string Kent { get; set; } = string.Empty;
         public string Auburn { get; set; } = string.Empty;
