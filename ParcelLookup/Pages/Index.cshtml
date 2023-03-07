@@ -129,12 +129,15 @@
             <div class="row">
                 <div class="col">
                     @*Only appears on the print version of this page.*@
-                    <h1 class="d-none">King County, Washington</h1>
-                    <h1>Districts Report</h1>
+                    <hr class="d-none" />
+                    <h1 class="d-none">King County, Washington State</h1>
+                    <h1 class="d-none">Districts Report <small>as of @DateTime.Now.ToShortDateString() at @DateTime.Now.ToShortTimeString()</small></h1>
+                    <h1 class="d-print-none">Districts Report</h1>
                 </div>
             </div>
             <div class="row">
                 <div class="col">
+                    <hr class="d-none" />
                     <h4>Parcel Definition</h4>
                     <div class="table-responsive">
                         <table class="table traditional-table-striped table-borderless">
@@ -219,7 +222,7 @@
                                 </tr>
                                 <tr>
                                     <td>
-                                        <a href="http://www.govlink.org/watersheds/default.aspx" target="_blank">Water Resource Inventory Area (WRIA)</a>
+                                        <a href="https://www.govlink.org/watersheds/default.aspx" target="_blank">Water Resource Inventory Area (WRIA)</a>
                                     </td>
                                     <td>
                                         <strong><a href="@Model?.Report?.WRIALink" target="_blank">@Model?.Report?.WRIAName (@Model?.Report?.WRIANumber)</a></strong>
@@ -254,6 +257,7 @@
                     </div>
                 </div>
                 <div class="col">
+                    <hr class="d-none" />
                     <h4>Electoral Districts</h4>
                     <div class="table-responsive">
                         <table class="table traditional-table-striped table-borderless">
@@ -393,6 +397,7 @@
                 @if (!string.IsNullOrWhiteSpace(Model?.Report?.Tukwila?.SiteAddress))
                 {
                     <div class="col">
+                        <hr class="d-none" />
                         <h4>City of Tukwila</h4>
                         <div class="table-responsive">
                             <table class="table traditional-table-striped table-borderless">
@@ -554,6 +559,7 @@
                     </div>
                 }
                 <div class="col">
+                    <hr class="d-none" />
                     <h4>Planning and Critical Areas</h4>
                     <div class="table-responsive">
                         <table class="table traditional-table-striped table-borderless">
