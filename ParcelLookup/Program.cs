@@ -2,8 +2,6 @@ using ParcelLookup.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-
-
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddOutputCache(options =>
@@ -27,7 +25,16 @@ if (!app.Environment.IsDevelopment())
 app.UseSecurityHeaders();
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+// https://stackoverflow.com/questions/68484201/static-file-caching-in-asp-net-core
+var cacheMaxAgeOneWeek = (60 * 60 * 24 * 7).ToString();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.Append(
+             "Cache-Control", $"public, max-age={cacheMaxAgeOneWeek}");
+    }
+});
 
 app.UseRouting();
 app.UseOutputCache();

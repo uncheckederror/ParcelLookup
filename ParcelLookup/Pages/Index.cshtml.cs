@@ -1,11 +1,9 @@
 using Flurl.Http;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.OutputCaching;
-using Microsoft.Extensions.Logging;
 using NetTopologySuite.Geometries;
 using ParcelLookup.Models;
 using System.Text.Json;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ParcelLookup.Pages
 {

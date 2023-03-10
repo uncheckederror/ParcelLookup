@@ -6,7 +6,8 @@
     <title>@ViewData["Title"] - Districts Report</title>
     <link rel="stylesheet" media="screen" href="https://kingcounty.gov/en/assets/KCGov/css/styles.css" />
     <link rel="stylesheet" media="screen" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" media="screen" href="~/ParcelLookup.styles.css" asp-append-version="true" />
+    @*    <link rel="stylesheet" media="screen" href="~/ParcelLookup.styles.css" asp-append-version="true" />
+    *@
     <link rel="stylesheet" media="print" href="~/css/print.css" asp-append-version="true" />
 
 </head>
@@ -193,8 +194,8 @@
         </div>
     </footer>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @*    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>*@
     <script src="~/js/site.js" asp-append-version="true"></script>
 
     @await RenderSectionAsync("Scripts", required: false)
