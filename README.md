@@ -1,7 +1,6 @@
 # ParcelLookup 🏡
 This project is a prototype designed to replace King County's existing GIS Districts Reports web app.
-
-# [TRY IT HERE](https://parcellookup.azurewebsites.net/)
+As of 6/7/2024 this project has served its purpose and will not be recieving updates. It exists as an artifact created during the development of [https://district-conditions-report.kingcounty.gov/](https://district-conditions-report.kingcounty.gov/)
 
 ![parcellookup azurewebsites net__PIN=0761000160](https://user-images.githubusercontent.com/11726956/215925903-bc7c4c82-052f-4c1b-ad31-8b9bfb0cddb7.png)
 
